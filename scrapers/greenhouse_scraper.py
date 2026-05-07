@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 
 GREENHOUSE_SLUGS = {
     "Shopify":             "shopify",
+    "Shopify (Platform)":  "shopify",
     "Databricks Canada":   "databricks",
     "Confluent Canada":    "confluent",
     "Airbnb Canada":       "airbnb",
@@ -23,7 +24,6 @@ GREENHOUSE_SLUGS = {
     "Cohere AI":           "cohere",
     "Palantir Canada":     "palantir",
     "Wayfair Canada":      "wayfair",
-    "Shopify (Platform)":  "shopify",
 }
 
 KNOWN_SKILLS = [
@@ -41,17 +41,27 @@ class GreenhouseScraper(BaseScraper):
             logger.warning(f"[{self.company_name}] No slug found")
             return []
 
-        url = f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true"
+        # Try different slug variations
+        slugs_to_try = [slug, slug.replace("-", ""), slug + "inc", slug + "hq"]
 
-        try:
-            resp = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
-            if resp.status_code != 200:
-                logger.warning(f"[{self.company_name}] API {resp.status_code}")
-                return []
-            all_jobs = resp.json().get("jobs", [])
-            logger.info(f"[{self.company_name}] {len(all_jobs)} jobs from API")
-        except Exception as e:
-            logger.error(f"[{self.company_name}] Error: {e}")
+        all_jobs = []
+        for s in slugs_to_try:
+            url = f"https://boards-api.greenhouse.io/v1/boards/{s}/jobs?content=true"
+            try:
+                resp = requests.get(url, timeout=15,
+                                    headers={"User-Agent": "Mozilla/5.0"})
+                if resp.status_code == 200:
+                    all_jobs = resp.json().get("jobs", [])
+                    logger.info(f"[{self.company_name}] {len(all_jobs)} jobs with slug: {s}")
+                    break
+                else:
+                    logger.debug(f"[{self.company_name}] Slug '{s}' returned {resp.status_code}")
+            except Exception as e:
+                logger.error(f"[{self.company_name}] Error: {e}")
+                continue
+
+        if not all_jobs:
+            logger.warning(f"[{self.company_name}] No jobs found with any slug")
             return []
 
         jobs = []
