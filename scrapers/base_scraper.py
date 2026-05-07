@@ -86,22 +86,34 @@ class BaseScraper:
 
     def is_canada_job(self, location: str) -> bool:
         if not location:
-            return True
-        loc = location.lower()
-        us_cities = [
-            "new york", "california", "texas", "seattle",
-            "san francisco", "chicago", "boston", "austin",
-            "denver", "atlanta", "miami", "los angeles", "new jersey"
-        ]
-        if any(c in loc for c in us_cities):
             return False
+        loc = location.lower()
+
+        # Must have an explicit Canadian location first
         canada_keywords = [
             "canada", "toronto", "vancouver", "calgary", "edmonton",
             "halifax", "ontario", "british columbia", "alberta",
-            "remote", "hybrid", "montreal", "ottawa", "waterloo",
-            "mississauga", "brampton", "quebec", "winnipeg"
+            "montreal", "ottawa", "waterloo", "mississauga", "brampton",
+            "quebec", "winnipeg", "burnaby", "kitchener", "oakville",
+            "stellarton", "saskatoon", "st. john", "remote - canada",
+            "remote – canada", "remote canada",
         ]
-        return any(k in loc for k in canada_keywords)
+        if not any(k in loc for k in canada_keywords):
+            return False
+
+        # Has a Canadian keyword — now reject if it also mentions non-Canada
+        non_canada = [
+            "remote - us", "remote – us", "remote - us:", "united states",
+            ", usa", "(usa)", "california", "new york", "texas",
+            "seattle", "san francisco", "chicago", "boston", "austin",
+            "germany", "united kingdom", "ireland", "india", "singapore",
+            "australia", "netherlands", "france", "remote - eu",
+            "bangalore", "bengaluru", "mumbai",
+        ]
+        if any(kw in loc for kw in non_canada):
+            return False
+
+        return True
 
     def is_data_role(self, title: str) -> bool:
         t = title.lower()

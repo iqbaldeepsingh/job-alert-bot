@@ -11,9 +11,14 @@ from scrapers.base_scraper import BaseScraper
 logger = logging.getLogger(__name__)
 
 LEVER_SLUGS = {
-    "Wealthsimple":    "wealthsimple",
-    "Snowflake Canada":"snowflake",
-    "Palantir Canada": "palantir",
+    "Wealthsimple":          "wealthsimple",
+    "Snowflake Canada":      "snowflake",
+    "Spotify Canada":        "spotify",
+    "Elastic Canada":        "elastic",
+    "Veeva Systems Canada":  "veeva",
+    "PointClickCare":        "pointclickcare",
+    # Palantir has 0 Canada postings but keep for future
+    "Palantir Canada":       "palantir",
 }
 
 KNOWN_SKILLS = [
