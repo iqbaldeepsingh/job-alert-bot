@@ -1,0 +1,205 @@
+"""
+Main Orchestrator
+ਸਾਰੇ scrapers ਚਲਾਉਂਦਾ ਹੈ, deduplicate ਕਰਦਾ ਹੈ, email ਭੇਜਦਾ ਹੈ
+
+Run:           python main.py
+Morning:       python main.py --run morning
+Evening:       python main.py --run evening
+Test email:    python main.py --test-email
+Clear cache:   python main.py --clear-cache
+No headless:   python main.py --no-headless
+"""
+
+import os
+import sys
+import time
+import logging
+import argparse
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from config.settings import COMPANIES
+from scrapers.base_scraper import build_driver
+from scrapers.custom_scrapers import get_scraper
+from utils.email_builder import send_email
+from utils.deduplicator import filter_new_jobs, clear_cache
+
+# ── Logging setup ───────────────────────────────────────────────
+os.makedirs("logs", exist_ok=True)
+os.makedirs("data", exist_ok=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("logs/job_alert.log", mode="a"),
+    ]
+)
+logger = logging.getLogger(__name__)
+
+
+# ── Scrape one company ──────────────────────────────────────────
+def scrape_company(company: dict, headless: bool = True) -> list:
+    driver = build_driver(headless=headless)
+    try:
+        scraper = get_scraper(company)
+        return scraper.run(driver)
+    except Exception as e:
+        logger.error(f"[{company['name']}] Unexpected error: {e}")
+        return []
+    finally:
+        driver.quit()
+
+
+# ── Scrape all companies ────────────────────────────────────────
+def scrape_all(headless: bool = True) -> list:
+    all_jobs = []
+    total    = len(COMPANIES)
+    done     = 0
+
+    # API-based (Greenhouse + Lever) — fast, no Chrome needed
+    api_cos = [c for c in COMPANIES if c.get("scraper") in ("greenhouse", "lever")]
+    sel_cos = [c for c in COMPANIES if c.get("scraper") not in ("greenhouse", "lever")]
+
+    logger.info(f"{'='*55}")
+    logger.info(f"Total companies : {total}")
+    logger.info(f"API scrapers    : {len(api_cos)} (Greenhouse + Lever)")
+    logger.info(f"Selenium scrapers: {len(sel_cos)}")
+    logger.info(f"{'='*55}")
+
+    # Phase 1 — API scrapers (10 parallel)
+    logger.info("Phase 1: API scrapers starting...")
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = {pool.submit(scrape_company, c, headless): c for c in api_cos}
+        for future in as_completed(futures):
+            jobs  = future.result()
+            all_jobs.extend(jobs)
+            done += 1
+            logger.info(f"Progress: {done}/{total} | Jobs so far: {len(all_jobs)}")
+
+    # Phase 2 — Selenium scrapers (5 parallel)
+    logger.info("Phase 2: Selenium scrapers starting...")
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = {pool.submit(scrape_company, c, headless): c for c in sel_cos}
+        for future in as_completed(futures):
+            jobs  = future.result()
+            all_jobs.extend(jobs)
+            done += 1
+            logger.info(f"Progress: {done}/{total} | Jobs so far: {len(all_jobs)}")
+
+    logger.info(f"Scraping complete — {len(all_jobs)} total jobs")
+    return all_jobs
+
+
+# ── Main run ────────────────────────────────────────────────────
+def run(run_label: str = "Daily", headless: bool = True):
+    start = time.time()
+    logger.info(f"{'='*55}")
+    logger.info(f"Job Alert Bot — {run_label}")
+    logger.info(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"{'='*55}")
+
+    # Step 1 — Scrape
+    all_jobs = scrape_all(headless=headless)
+
+    # Step 2 — Deduplicate
+    new_jobs = filter_new_jobs(all_jobs)
+
+    if not new_jobs:
+        logger.info("No new jobs found — skipping email")
+        return
+
+    # Step 3 — Sort (Senior first)
+    level_order = {
+        "Staff / Lead": 0,
+        "Principal":    1,
+        "Senior":       2,
+        "Mid-Level":    3,
+        "Entry Level":  4,
+    }
+    new_jobs.sort(key=lambda j: level_order.get(j.get("level", "Mid-Level"), 3))
+
+    # Step 4 — Send email
+    logger.info(f"Sending email with {len(new_jobs)} new jobs...")
+    success = send_email(new_jobs, run_label=run_label)
+
+    elapsed = time.time() - start
+    logger.info(f"{'='*55}")
+    logger.info(f"Done in {elapsed:.0f}s")
+    logger.info(f"Scraped: {len(all_jobs)} | New: {len(new_jobs)} | Email: {success}")
+    logger.info(f"{'='*55}")
+
+
+# ── CLI ─────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Job Alert Bot")
+    parser.add_argument("--run",
+        choices=["morning", "evening", "daily"],
+        default="daily",
+        help="Run label for email subject")
+    parser.add_argument("--no-headless",
+        action="store_true",
+        help="Show Chrome window (for debugging)")
+    parser.add_argument("--clear-cache",
+        action="store_true",
+        help="Clear seen jobs cache")
+    parser.add_argument("--test-email",
+        action="store_true",
+        help="Send test email with dummy jobs")
+    args = parser.parse_args()
+
+    if args.clear_cache:
+        clear_cache()
+        print("✅ Cache cleared")
+        sys.exit(0)
+
+    if args.test_email:
+        dummy = [
+            {
+                "title": "Senior Data Engineer",
+                "company": "RBC",
+                "category": "Banks",
+                "location": "Toronto, ON",
+                "level": "Senior",
+                "type": "Hybrid",
+                "posted": "Today",
+                "url": "https://jobs.rbc.com",
+                "salary": "$125K–$165K",
+                "skills": ["Azure", "Databricks", "PySpark", "Delta Lake", "dbt"],
+            },
+            {
+                "title": "Analytics Engineer",
+                "company": "Shopify",
+                "category": "Big Tech",
+                "location": "Remote Canada",
+                "level": "Senior",
+                "type": "Remote",
+                "posted": "2 days ago",
+                "url": "https://shopify.com/careers",
+                "salary": "$138K–$178K",
+                "skills": ["GCP", "Trino", "dbt", "Python", "Spark"],
+            },
+            {
+                "title": "Data Engineer",
+                "company": "Deloitte Canada",
+                "category": "Consulting",
+                "location": "Toronto, ON",
+                "level": "Entry Level",
+                "type": "Hybrid",
+                "posted": "1 week ago",
+                "url": "https://careers.deloitte.ca",
+                "salary": "$75K–$98K",
+                "skills": ["Azure", "Python", "SQL", "dbt", "ADF"],
+            },
+        ]
+        ok = send_email(dummy, run_label="TEST")
+        print(f"Test email {'✅ sent!' if ok else '❌ failed — check .env file'}")
+        sys.exit(0)
+
+    labels = {
+        "morning": "Morning (9 AM)",
+        "evening": "Evening (7 PM)",
+        "daily":   "Daily",
+    }
+    run(run_label=labels[args.run], headless=not args.no_headless)
