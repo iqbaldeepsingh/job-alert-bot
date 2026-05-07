@@ -5,25 +5,25 @@ from scrapers.base_scraper import BaseScraper
 logger = logging.getLogger(__name__)
 
 GREENHOUSE_SLUGS = {
-    "Shopify": "shopify",
-    "Databricks Canada": "databricks",
-    "Confluent Canada": "confluent",
-    "Airbnb Canada": "airbnb",
-    "Datadog Canada": "datadog",
-    "Coveo": "coveo",
-    "Lightspeed Commerce": "lightspeedhq",
-    "Clio": "clio",
-    "Kinaxis": "kinaxis",
-    "PointClickCare": "pointclickcare",
-    "dbt Labs Canada": "dbtlabs",
-    "Fivetran Canada": "fivetran",
-    "Geotab": "geotab",
-    "Borealis AI (RBC)": "borealisai",
-    "OpenAI Canada": "openai",
-    "Cohere AI": "cohere",
-    "Palantir Canada": "palantir",
-    "Wayfair Canada": "wayfair",
-    "Shopify (Platform)": "shopify",
+    "Shopify":             "shopify",
+    "Databricks Canada":   "databricks",
+    "Confluent Canada":    "confluent",
+    "Airbnb Canada":       "airbnb",
+    "Datadog Canada":      "datadog",
+    "Coveo":               "coveo",
+    "Lightspeed Commerce": "lightspeed",
+    "Clio":                "cliolegalsoftware",
+    "Kinaxis":             "kinaxis",
+    "PointClickCare":      "pointclickcare",
+    "dbt Labs Canada":     "dbtlabsinc",
+    "Fivetran Canada":     "fivetran",
+    "Geotab":              "geotab",
+    "Borealis AI (RBC)":   "borealisai",
+    "OpenAI Canada":       "openai",
+    "Cohere AI":           "cohere",
+    "Palantir Canada":     "palantir",
+    "Wayfair Canada":      "wayfair",
+    "Shopify (Platform)":  "shopify",
 }
 
 KNOWN_SKILLS = [
@@ -49,6 +49,7 @@ class GreenhouseScraper(BaseScraper):
                 logger.warning(f"[{self.company_name}] API {resp.status_code}")
                 return []
             all_jobs = resp.json().get("jobs", [])
+            logger.info(f"[{self.company_name}] {len(all_jobs)} jobs from API")
         except Exception as e:
             logger.error(f"[{self.company_name}] Error: {e}")
             return []
