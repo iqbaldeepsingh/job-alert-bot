@@ -1,0 +1,59 @@
+name: Daily Job Alert Bot
+
+on:
+  schedule:
+    - cron: "0 13 * * *"   # 9 AM Toronto (EDT)
+    - cron: "0 23 * * *"   # 7 PM Toronto (EDT)
+  workflow_dispatch:        # Manual trigger anytime
+
+jobs:
+  job-alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Chrome
+        run: |
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+          sudo apt-get update -q
+          sudo apt-get install -y google-chrome-stable
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create directories
+        run: mkdir -p logs data
+
+      - name: Restore seen jobs cache
+        uses: actions/cache@v4
+        with:
+          path: data/seen_jobs.json
+          key: seen-jobs-${{ github.run_number }}
+          restore-keys: seen-jobs-
+
+      - name: Run Job Alert Bot
+        env:
+          GMAIL_SENDER:       ${{ secrets.GMAIL_SENDER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GMAIL_RECIPIENT:    ${{ secrets.GMAIL_RECIPIENT }}
+        run: python main.py --run morning
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ github.run_number }}
+          path: logs/job_alert.log
+          retention-days: 7
