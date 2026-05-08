@@ -14,6 +14,8 @@ LEVER_SLUGS = {
     # Palantir has 0 Canada postings but keep for future
     "Palantir Canada":       "palantir",
     "Klarna Canada":         "klarna",
+    "Wave Financial":        "waveapps",
+    "Wattpad / Naver Canada": "wattpad",
 }
 
 
