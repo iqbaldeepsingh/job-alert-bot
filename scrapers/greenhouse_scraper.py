@@ -14,7 +14,7 @@ GREENHOUSE_SLUGS = {
     "Datadog Canada":             "datadog",
     "MongoDB Canada":             "mongodb",
     "Borealis AI (RBC)":          "borealisai",
-    "Wayfair Canada":             "wayfair",
+    "Elastic Canada":             "elastic",
     # New companies — likely Greenhouse
     "Coinbase Canada":            "coinbase",
     "Nuvei":                      "nuvei",

@@ -8,7 +8,6 @@ LEVER_SLUGS = {
     "Wealthsimple":          "wealthsimple",
     "Snowflake Canada":      "snowflake",
     "Spotify Canada":        "spotify",
-    "Elastic Canada":        "elastic",
     "Veeva Systems Canada":  "veeva",
     "PointClickCare":        "pointclickcare",
     # Palantir has 0 Canada postings but keep for future
