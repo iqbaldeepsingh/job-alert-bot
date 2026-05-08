@@ -1,9 +1,3 @@
-"""
-Lever Scraper
-Wealthsimple, Snowflake, Palantir
-Lever ਵੀ JSON API ਦਿੰਦਾ ਹੈ — fast ਅਤੇ reliable
-"""
-
 import logging
 import requests
 from scrapers.base_scraper import BaseScraper
@@ -19,14 +13,8 @@ LEVER_SLUGS = {
     "PointClickCare":        "pointclickcare",
     # Palantir has 0 Canada postings but keep for future
     "Palantir Canada":       "palantir",
+    "Klarna Canada":         "klarna",
 }
-
-KNOWN_SKILLS = [
-    "Python", "PySpark", "Spark", "SQL", "dbt", "Airflow",
-    "Databricks", "Snowflake", "Azure", "AWS", "GCP", "Kafka",
-    "Delta Lake", "BigQuery", "Terraform", "Docker", "Kubernetes",
-    "Trino", "Flink", "Iceberg", "MLflow", "Redshift",
-]
 
 
 class LeverScraper(BaseScraper):
@@ -66,7 +54,7 @@ class LeverScraper(BaseScraper):
             apply_url = job.get("hostedUrl", "")
             desc      = (job.get("descriptionPlain", "") + " " +
                          job.get("additionalPlain", ""))
-            skills    = self._extract_skills(desc)
+            skills    = self.extract_skills(desc)
 
             jobs.append(self.build_job(
                 title=title,
@@ -77,11 +65,3 @@ class LeverScraper(BaseScraper):
             ))
 
         return jobs
-
-    def _extract_skills(self, text: str) -> list:
-        found = []
-        lower = text.lower()
-        for skill in KNOWN_SKILLS:
-            if skill.lower() in lower:
-                found.append(skill)
-        return found[:6]

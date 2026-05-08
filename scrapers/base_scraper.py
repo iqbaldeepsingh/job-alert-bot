@@ -16,6 +16,21 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 logger = logging.getLogger(__name__)
 
+KNOWN_SKILLS = [
+    "Python", "PySpark", "Spark", "SQL", "dbt", "Airflow",
+    "Databricks", "Snowflake", "Azure", "AWS", "GCP", "Kafka",
+    "Delta Lake", "BigQuery", "Terraform", "Docker", "Kubernetes",
+    "Trino", "Flink", "Iceberg", "MLflow", "Redshift", "Hudi",
+    "Unity Catalog", "ADF",
+]
+
+KNOWN_SKILLS_LOWER = [s.lower() for s in KNOWN_SKILLS]
+
+HTTP_HEADERS = {
+    "Content-Type": "application/json",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+}
+
 
 def build_driver(headless: bool = True) -> webdriver.Chrome:
     opts = Options()
@@ -109,6 +124,9 @@ class BaseScraper:
             "germany", "united kingdom", "ireland", "india", "singapore",
             "australia", "netherlands", "france", "remote - eu",
             "bangalore", "bengaluru", "mumbai",
+            "kuala lumpur", "malaysia", "putrajaya",
+            "poland", "warsaw", "krakow", "czech", "prague",
+            "philippines", "manila", "jakarta", "indonesia",
         ]
         if any(kw in loc for kw in non_canada):
             return False
@@ -138,6 +156,10 @@ class BaseScraper:
         if any(w in t for w in ["mid", "intermediate", "level 2"]):
             return "Mid-Level"
         return "Mid-Level"
+
+    def extract_skills(self, text: str, limit: int = 6) -> list:
+        lower = text.lower()
+        return [KNOWN_SKILLS[i] for i, s in enumerate(KNOWN_SKILLS_LOWER) if s in lower][:limit]
 
     def build_job(self, title: str, location: str = "",
                   level: str = "", job_type: str = "Full-time",

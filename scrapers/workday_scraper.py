@@ -6,18 +6,22 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
-from scrapers.base_scraper import BaseScraper
+from scrapers.base_scraper import BaseScraper, HTTP_HEADERS
 
 logger = logging.getLogger(__name__)
 
-HEADERS = {
-    "Content-Type": "application/json",
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-}
+JOB_CARD_SELECTORS = [
+    "[data-automation-id='jobItem']",
+    "li[class*='css-'][data-automation-id]",
+    "li.css-1q2dra3",
+    "[data-automation-id='compositeContainer']",
+    "ul[role='list'] li",
+    ".css-1q2dra3",
+    "li[class*='css-']",
+]
 
 
 def _parse_workday_url(url: str):
-    """Extract (tenant, wd_version, board) from a myworkdayjobs.com URL."""
     m = re.search(r"https://([^.]+)\.(wd\d+)\.myworkdayjobs\.com/([^/?]+)", url)
     if m:
         return m.group(1), m.group(2), m.group(3)
@@ -25,6 +29,10 @@ def _parse_workday_url(url: str):
 
 
 class WorkdayScraper(BaseScraper):
+
+    def __init__(self, company: dict):
+        super().__init__(company)
+        self._tenant, self._wd, self._board = _parse_workday_url(self.careers_url)
 
     def scrape(self, driver) -> list:
         jobs = self._scrape_api()
@@ -36,22 +44,33 @@ class WorkdayScraper(BaseScraper):
     # ── Workday JSON API (fast, no browser needed) ───────────────
 
     def _scrape_api(self):
-        tenant, wd, board = _parse_workday_url(self.careers_url)
-        if not tenant:
+        if not self._tenant:
             return None
 
-        api_url = f"https://{tenant}.{wd}.myworkdayjobs.com/wday/cxs/{tenant}/{board}/jobs"
-        body = {"appliedFacets": {}, "limit": 20, "offset": 0, "searchText": "data engineer"}
+        api_url = (f"https://{self._tenant}.{self._wd}.myworkdayjobs.com"
+                   f"/wday/cxs/{self._tenant}/{self._board}/jobs")
 
         try:
-            r = requests.post(api_url, headers=HEADERS, json=body, timeout=12)
-            if r.status_code != 200:
-                return None
+            # Workday limit: some tenants reject limit>20, so use 20 for safety
+            PAGE = 20
+            all_postings = []
+            offset = 0
+            while True:
+                body = {"appliedFacets": {}, "limit": PAGE, "offset": offset, "searchText": "data engineer"}
+                r = requests.post(api_url, headers=HTTP_HEADERS, json=body, timeout=12)
+                if r.status_code != 200:
+                    return None
+                data = r.json()
+                page_postings = data.get("jobPostings", [])
+                all_postings.extend(page_postings)
+                total = data.get("total", 0)
+                if offset == 0:
+                    logger.info(f"[{self.company_name}] API: {total} total postings")
+                offset += PAGE
+                if offset >= total or not page_postings:
+                    break
 
-            data = r.json()
-            postings = data.get("jobPostings", [])
-            logger.info(f"[{self.company_name}] API: {data.get('total', 0)} total postings")
-
+            postings = all_postings
             jobs = []
             for p in postings:
                 title = p.get("title", "")
@@ -61,7 +80,8 @@ class WorkdayScraper(BaseScraper):
                 if not self.is_canada_job(location):
                     continue
                 path = p.get("externalPath", "")
-                job_url = f"https://{tenant}.{wd}.myworkdayjobs.com{path}" if path else self.careers_url
+                job_url = (f"https://{self._tenant}.{self._wd}.myworkdayjobs.com{path}"
+                           if path else self.careers_url)
                 posted = p.get("postedOn", "Recent")
                 jobs.append(self.build_job(title=title, location=location, url=job_url, posted=posted))
 
@@ -73,19 +93,16 @@ class WorkdayScraper(BaseScraper):
 
     # ── Selenium fallback ────────────────────────────────────────
 
+    def _find_job_cards(self, driver):
+        for sel in JOB_CARD_SELECTORS:
+            cards = driver.find_elements(By.CSS_SELECTOR, sel)
+            if cards:
+                return cards
+        return []
+
     def _scrape_selenium(self, driver) -> list:
         driver.get(self.careers_url)
         time.sleep(5)
-
-        JOB_CARD_SELECTORS = [
-            "[data-automation-id='jobItem']",
-            "li[class*='css-'][data-automation-id]",
-            "li.css-1q2dra3",
-            "[data-automation-id='compositeContainer']",
-            "ul[role='list'] li",
-            ".css-1q2dra3",
-            "li[class*='css-']",
-        ]
 
         cards = []
         for sel in JOB_CARD_SELECTORS:
@@ -104,10 +121,7 @@ class WorkdayScraper(BaseScraper):
             try:
                 driver.execute_script("window.scrollTo(0, 500)")
                 time.sleep(3)
-                for sel in JOB_CARD_SELECTORS:
-                    cards = driver.find_elements(By.CSS_SELECTOR, sel)
-                    if cards:
-                        break
+                cards = self._find_job_cards(driver)
             except Exception:
                 pass
 
@@ -117,11 +131,7 @@ class WorkdayScraper(BaseScraper):
 
         self.slow_scroll(driver)
         time.sleep(2)
-
-        for sel in JOB_CARD_SELECTORS:
-            cards = driver.find_elements(By.CSS_SELECTOR, sel)
-            if cards:
-                break
+        cards = self._find_job_cards(driver)
 
         jobs = []
         for card in cards[:25]:

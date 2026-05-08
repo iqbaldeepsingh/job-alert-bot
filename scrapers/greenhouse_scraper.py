@@ -34,14 +34,27 @@ GREENHOUSE_SLUGS = {
     "Faire":                      "faire",
     "Procore Technologies Canada":"procore",
     "League Inc":                 "league",
+    # New additions — unverified slugs
+    "Instacart Canada":           "instacart",
+    "Dagster":                    "dagsterlabs",
+    # Verified working
+    "D2L / Desire2Learn":         "d2l",
+    "Tulip Retail":               "tulip",
+    "Flipp":                      "flipp",
+    "AbCellera Biologics":        "abcellera",
+    "Ritual":                     "ritual",
+    "LinkedIn Canada":            "linkedin",
+    "Stripe Canada":              "stripe",
+    "Unity Technologies Canada":  "unity3d",
 }
 
-KNOWN_SKILLS = [
-    "Python", "PySpark", "Spark", "SQL", "dbt", "Airflow",
-    "Databricks", "Snowflake", "Azure", "AWS", "GCP", "Kafka",
-    "Delta Lake", "BigQuery", "Terraform", "Docker", "Trino",
-    "Flink", "Hudi", "MLflow", "Unity Catalog", "ADF",
-]
+# Slugs verified to work — skip +inc/+hq fallbacks for these
+VERIFIED_SLUGS = {
+    "Databricks Canada", "Fivetran Canada", "Geotab", "dbt Labs Canada",
+    "Airbnb Canada", "Datadog Canada", "MongoDB Canada", "Borealis AI (RBC)",
+    "Wayfair Canada",
+}
+
 
 class GreenhouseScraper(BaseScraper):
 
@@ -51,8 +64,10 @@ class GreenhouseScraper(BaseScraper):
             logger.warning(f"[{self.company_name}] No slug found")
             return []
 
-        # Try different slug variations
-        slugs_to_try = [slug, slug.replace("-", ""), slug + "inc", slug + "hq"]
+        if self.company_name in VERIFIED_SLUGS:
+            slugs_to_try = [slug]
+        else:
+            slugs_to_try = [slug, slug.replace("-", ""), slug + "inc", slug + "hq"]
 
         all_jobs = []
         for s in slugs_to_try:
@@ -84,8 +99,7 @@ class GreenhouseScraper(BaseScraper):
             if not self.is_canada_job(location):
                 continue
             apply_url = job.get("absolute_url", "")
-            content = job.get("content", "")
-            skills = [s for s in KNOWN_SKILLS if s.lower() in content.lower()][:6]
+            skills = self.extract_skills(job.get("content", ""))
             jobs.append(self.build_job(
                 title=title,
                 location=location,
