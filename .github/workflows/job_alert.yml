@@ -48,7 +48,12 @@ jobs:
           GMAIL_SENDER:       ${{ secrets.GMAIL_SENDER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           GMAIL_RECIPIENT:    ${{ secrets.GMAIL_RECIPIENT }}
-        run: python main.py --run morning
+        run: |
+          if [ "${{ github.event.schedule }}" = "0 22 * * *" ]; then
+            python main.py --run evening
+          else
+            python main.py --run morning
+          fi
 
       - name: Upload logs
         if: always()

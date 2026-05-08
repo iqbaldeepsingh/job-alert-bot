@@ -199,7 +199,7 @@ if __name__ == "__main__":
 
     labels = {
         "morning": "Morning (9 AM)",
-        "evening": "Evening (7 PM)",
+        "evening": "Evening (6 PM)",
         "daily":   "Daily",
     }
     run(run_label=labels[args.run], headless=not args.no_headless)
