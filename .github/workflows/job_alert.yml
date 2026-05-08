@@ -47,8 +47,10 @@ jobs:
         run: |
           if [ "${{ github.event.schedule }}" = "0 22 * * *" ]; then
             python main.py --run evening
-          else
+          elif [ "${{ github.event.schedule }}" = "0 13 * * *" ]; then
             python main.py --run morning
+          else
+            python main.py --run daily
           fi
 
       - name: Upload logs
