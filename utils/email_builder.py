@@ -62,6 +62,28 @@ def build_job_row(job: dict) -> str:
 
 
 def build_email_html(jobs: list, run_time: str) -> str:
+    if not jobs:
+        return f"""<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
+<div style="max-width:640px;margin:0 auto;padding:20px 10px;">
+  <div style="background:linear-gradient(135deg,#0C447C,#185FA5);
+              border-radius:12px;padding:22px 26px;margin-bottom:18px;">
+    <h1 style="color:#fff;font-size:20px;margin:0 0 5px;">✅ Job Alert Bot — Running Fine</h1>
+    <p style="color:#B5D4F4;font-size:12px;margin:0;">{run_time} &nbsp;·&nbsp; {len(COMPANIES)} companies monitored</p>
+  </div>
+  <div style="background:#fff;border-radius:12px;padding:30px;text-align:center;">
+    <p style="font-size:32px;margin:0 0 10px;">😴</p>
+    <h2 style="color:#0C447C;font-size:18px;margin:0 0 8px;">No New Jobs Today</h2>
+    <p style="color:#666;font-size:14px;margin:0;">All {len(COMPANIES)} companies were checked. No new Canada data engineering roles since last run.</p>
+  </div>
+  <div style="text-align:center;color:#bbb;font-size:11px;padding:14px 0;">
+    🤖 Job Alert Bot &nbsp;·&nbsp; 9:00 AM &amp; 6:00 PM daily &nbsp;·&nbsp; {len(COMPANIES)} companies
+  </div>
+</div>
+</body>
+</html>"""
+
     total   = len(jobs)
     senior  = sum(1 for j in jobs if "Senior" in j.get("level", ""))
     mid     = sum(1 for j in jobs if "Mid" in j.get("level", ""))
@@ -160,9 +182,13 @@ def build_email_html(jobs: list, run_time: str) -> str:
 def send_email(jobs: list, run_label: str = "Daily") -> bool:
     cfg     = EMAIL_CONFIG
     now     = datetime.now().strftime("%A, %B %d %Y — %I:%M %p")
-    subject = (f"🔔 Job Alert [{run_label}]: "
-               f"{len(jobs)} Data Engineering Jobs — "
-               f"{datetime.now().strftime('%b %d, %Y')}")
+    if not jobs:
+        subject = (f"✅ Job Alert [{run_label}]: No New Jobs — "
+                   f"{datetime.now().strftime('%b %d, %Y')}")
+    else:
+        subject = (f"🔔 Job Alert [{run_label}]: "
+                   f"{len(jobs)} Data Engineering Jobs — "
+                   f"{datetime.now().strftime('%b %d, %Y')}")
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject

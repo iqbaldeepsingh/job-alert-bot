@@ -107,7 +107,8 @@ def run(run_label: str = "Daily", headless: bool = True):
     new_jobs = filter_new_jobs(all_jobs)
 
     if not new_jobs:
-        logger.info("No new jobs found — skipping email")
+        logger.info("No new jobs found — sending status email")
+        send_email([], run_label=run_label)
         return
 
     # Step 3 — Sort (Senior first)
