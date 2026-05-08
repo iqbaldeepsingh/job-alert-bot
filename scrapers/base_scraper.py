@@ -138,7 +138,7 @@ class BaseScraper:
         keywords = [
             "data engineer", "data platform", "analytics engineer",
             "big data", "databricks", "spark", "pyspark", "etl", "elt",
-            "data architect", "dataops", "ml engineer", "data scientist",
+            "data architect", "dataops", "ml engineer",
             "data analyst", "pipeline engineer", "data infrastructure",
             "bi engineer", "bi developer", "business intelligence",
             "data reliability", "cloud data", "data ops",
