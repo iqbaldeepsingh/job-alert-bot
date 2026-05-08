@@ -19,6 +19,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from config.settings import COMPANIES
+from scrapers.custom_scrapers import get_scraper, GenericScraper
 from scrapers.base_scraper import build_driver
 from scrapers.custom_scrapers import get_scraper
 from utils.email_builder import send_email
@@ -60,7 +61,10 @@ def scrape_all(headless: bool = True) -> list:
 
     # API-based (Greenhouse + Lever) — fast, no Chrome needed
     api_cos = [c for c in COMPANIES if c.get("scraper") in ("greenhouse", "lever")]
-    sel_cos = [c for c in COMPANIES if c.get("scraper") not in ("greenhouse", "lever")]
+    # Selenium phase — skip companies with no real scraper (GenericScraper always returns 0)
+    sel_cos = [c for c in COMPANIES
+               if c.get("scraper") not in ("greenhouse", "lever")
+               and not isinstance(get_scraper(c), GenericScraper)]
 
     logger.info(f"{'='*55}")
     logger.info(f"Total companies : {total}")
