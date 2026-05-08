@@ -9,7 +9,7 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from config.settings import EMAIL_CONFIG, MAX_JOBS_PER_EMAIL
+from config.settings import EMAIL_CONFIG, MAX_JOBS_PER_EMAIL, COMPANIES
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ def build_email_html(jobs: list, run_time: str) -> str:
       🔔 Daily Job Alert — Data Engineering Canada
     </h1>
     <p style="color:#B5D4F4;font-size:12px;margin:0;">
-      {run_time} &nbsp;·&nbsp; {total} new openings &nbsp;·&nbsp; 204 companies monitored
+      {run_time} &nbsp;·&nbsp; {total} new openings &nbsp;·&nbsp; {len(COMPANIES)} companies monitored
     </p>
   </div>
 
@@ -149,7 +149,7 @@ def build_email_html(jobs: list, run_time: str) -> str:
   <!-- Footer -->
   <div style="text-align:center;color:#bbb;font-size:11px;padding:14px 0;">
     🤖 Job Alert Bot &nbsp;·&nbsp; Selenium + GitHub Actions &nbsp;·&nbsp;
-    9:00 AM &amp; 6:00 PM daily &nbsp;·&nbsp; 204 companies
+    9:00 AM &amp; 6:00 PM daily &nbsp;·&nbsp; {len(COMPANIES)} companies
   </div>
 
 </div>
