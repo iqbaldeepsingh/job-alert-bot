@@ -4,6 +4,7 @@ Email Builder + Sender
 """
 
 import smtplib
+import ssl
 import logging
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
@@ -197,9 +198,8 @@ def send_email(jobs: list, run_label: str = "Daily") -> bool:
     msg.attach(MIMEText(build_email_html(jobs, now), "html"))
 
     try:
-        with smtplib.SMTP(cfg["smtp_host"], cfg["smtp_port"]) as server:
-            server.ehlo()
-            server.starttls()
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL(cfg["smtp_host"], cfg["smtp_port"], timeout=30, context=ctx) as server:
             server.login(cfg["sender_email"], cfg["sender_password"])
             server.sendmail(
                 cfg["sender_email"],

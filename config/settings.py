@@ -7,7 +7,7 @@ EMAIL_CONFIG = {
     "sender_password": os.getenv("GMAIL_APP_PASSWORD", "your_app_password"),
     "recipient_email": os.getenv("GMAIL_RECIPIENT", "your_gmail@gmail.com"),
     "smtp_host":       "smtp.gmail.com",
-    "smtp_port":       587,
+    "smtp_port":       465,
 }
 
 SEARCH_KEYWORDS = [
