@@ -23,31 +23,80 @@ from scrapers.shopify_scraper import ShopifyScraper
 from scrapers.avature_scraper import AvatureScraper
 from scrapers.ibm_scraper import IBMScraper
 from scrapers.oracle_hcm_scraper import OracleHCMScraper
+from scrapers.netflix_scraper import NetflixScraper
 
 logger = logging.getLogger(__name__)
 
 
 # ── GOOGLE ──────────────────────────────────────────────────────
+_GOOGLE_CARD_SELS = [
+    "li.lLd3Je", "li[jsmodel]", ".sMn82b",
+    "[data-job-id]", "li[class*='job']",
+    ".jobs-list li", "ul.jobs li",
+    "article[class*='job']",
+]
+_GOOGLE_TITLE_SELS  = ["h3", "h2", ".QJPWVe", ".job-title", "[class*='title']"]
+_GOOGLE_LOC_SELS    = [".r0wTof", ".location", ".job-location", "[class*='location']"]
+
+
 class GoogleScraper(BaseScraper):
     def scrape(self, driver) -> list:
         driver.get(self.careers_url)
-        time.sleep(4)
+        time.sleep(5)
+        try:
+            WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "li.lLd3Je, li[jsmodel], [data-job-id], li[class*='job']")
+                )
+            )
+        except TimeoutException:
+            pass
         self.slow_scroll(driver)
+        time.sleep(2)
+
+        cards = []
+        for sel in _GOOGLE_CARD_SELS:
+            cards = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(cards) > 1:
+                logger.info(f"[Google] {len(cards)} cards with: {sel}")
+                break
+
+        if not cards:
+            logger.warning("[Google] No job cards — trying link extraction")
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/jobs/results/']")
+            jobs = []
+            for link in links[:30]:
+                title = self.safe_text(link)
+                url = self.safe_attr(link, "href")
+                if title and len(title) > 5:
+                    jobs.append(self.build_job(title=title, location="Canada", url=url))
+            return jobs
+
         jobs = []
-        cards = driver.find_elements(By.CSS_SELECTOR,
-            "li.lLd3Je, .sMn82b, li[jsmodel], .job-result")
-        for card in cards[:20]:
+        for card in cards[:25]:
             try:
-                title = self.safe_text(
-                    card.find_element(By.CSS_SELECTOR, "h3, .QJPWVe, .job-title"))
-                location = self.safe_text(
-                    card.find_element(By.CSS_SELECTOR, ".r0wTof, .location, .job-location"))
+                title, url, location = "", "", ""
+                for tsel in _GOOGLE_TITLE_SELS:
+                    try:
+                        el = card.find_element(By.CSS_SELECTOR, tsel)
+                        title = self.safe_text(el)
+                        if title:
+                            break
+                    except NoSuchElementException:
+                        continue
                 try:
-                    url = card.find_element(By.CSS_SELECTOR, "a").get_attribute("href")
+                    url = self.safe_attr(card.find_element(By.CSS_SELECTOR, "a"), "href")
                 except NoSuchElementException:
-                    url = ""
+                    pass
+                for lsel in _GOOGLE_LOC_SELS:
+                    try:
+                        location = self.safe_text(card.find_element(By.CSS_SELECTOR, lsel))
+                        if location:
+                            break
+                    except NoSuchElementException:
+                        continue
                 if title:
-                    jobs.append(self.build_job(title=title, location=location, url=url))
+                    jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
             except Exception:
                 continue
         return jobs
@@ -156,77 +205,146 @@ class MicrosoftScraper(BaseScraper):
 
 
 # ── META ────────────────────────────────────────────────────────
+_META_CARD_SELS  = [
+    "[data-testid='job-card']", "div[data-testid='job-listing-card']",
+    "._8muv", "._8iwr", "div[class*='job']",
+    ".jobs-list-item", "li[class*='job']",
+    "a[href*='/jobs/']",
+]
+_META_TITLE_SELS = [
+    "[data-testid='job-title']", "a span", "._8hq4 span",
+    "h3", "h2", "[class*='title']",
+]
+_META_LOC_SELS   = [
+    "[data-testid='job-listing-location']", "._8hq6",
+    "[class*='location']", ".location",
+]
+
+
 class MetaScraper(BaseScraper):
     def scrape(self, driver) -> list:
         driver.get(self.careers_url)
-        time.sleep(5)
+        time.sleep(6)
+        try:
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "[data-testid='job-card'], ._8muv, a[href*='/jobs/']")
+                )
+            )
+        except TimeoutException:
+            pass
         self.slow_scroll(driver)
+        time.sleep(2)
+
+        cards = []
+        for sel in _META_CARD_SELS:
+            cards = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(cards) > 1:
+                logger.info(f"[Meta] {len(cards)} cards with: {sel}")
+                break
+
         jobs = []
-        cards = driver.find_elements(By.CSS_SELECTOR,
-            "div[data-testid='job-listing-card'], ._8muv")
-        for card in cards[:20]:
+        for card in cards[:25]:
             try:
-                title_el = card.find_element(By.CSS_SELECTOR,
-                    "a span, ._8hq4 span")
-                title    = self.safe_text(title_el)
-                url      = self.safe_attr(
-                    card.find_element(By.CSS_SELECTOR, "a"), "href")
-                location = self.safe_text(card.find_element(By.CSS_SELECTOR,
-                    "[data-testid='job-listing-location'], ._8hq6"))
-                if title:
-                    jobs.append(self.build_job(title=title, location=location, url=url))
+                title, url, location = "", "", ""
+                for tsel in _META_TITLE_SELS:
+                    try:
+                        el = card.find_element(By.CSS_SELECTOR, tsel)
+                        title = self.safe_text(el)
+                        if title:
+                            break
+                    except NoSuchElementException:
+                        continue
+                if not title:
+                    title = self.safe_text(card)
+                try:
+                    url = self.safe_attr(card.find_element(By.CSS_SELECTOR, "a"), "href")
+                except NoSuchElementException:
+                    pass
+                for lsel in _META_LOC_SELS:
+                    try:
+                        location = self.safe_text(card.find_element(By.CSS_SELECTOR, lsel))
+                        if location:
+                            break
+                    except NoSuchElementException:
+                        continue
+                if title and len(title) > 4:
+                    jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
             except Exception:
                 continue
         return jobs
 
 
 # ── APPLE ───────────────────────────────────────────────────────
+_APPLE_CARD_SELS  = [
+    "tbody tr", ".table-row",
+    "[class*='table-row']", "li[class*='job']",
+    "[data-id]", "div[class*='job']",
+]
+_APPLE_TITLE_SELS = [
+    "a.table--advanced-search__title", "a[href*='/details/']",
+    "a", "h3", "h2",
+]
+
+
 class AppleScraper(BaseScraper):
     def scrape(self, driver) -> list:
         driver.get(self.careers_url)
-        time.sleep(4)
+        time.sleep(5)
+        try:
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "tbody tr, [class*='table-row'], a[href*='/details/']")
+                )
+            )
+        except TimeoutException:
+            pass
         self.slow_scroll(driver)
+
+        cards = []
+        for sel in _APPLE_CARD_SELS:
+            cards = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(cards) > 1:
+                logger.info(f"[Apple] {len(cards)} cards with: {sel}")
+                break
+
+        if not cards:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/details/'], a[href*='jobs.apple.com']")
+            jobs = []
+            for link in links[:30]:
+                title = self.safe_text(link)
+                url = self.safe_attr(link, "href")
+                if title and len(title) > 5:
+                    jobs.append(self.build_job(title=title, location="Canada", url=url))
+            return jobs
+
         jobs = []
-        cards = driver.find_elements(By.CSS_SELECTOR,
-            "tbody tr, .table--advanced-search__title")
-        for card in cards[:20]:
+        for card in cards[:25]:
             try:
-                title_el = card.find_element(By.CSS_SELECTOR,
-                    "a, .table--advanced-search__title")
-                title    = self.safe_text(title_el)
-                url      = self.safe_attr(title_el, "href")
+                title, url, location = "", "", ""
+                for tsel in _APPLE_TITLE_SELS:
+                    try:
+                        el = card.find_element(By.CSS_SELECTOR, tsel)
+                        title = self.safe_text(el)
+                        url = self.safe_attr(el, "href")
+                        if title:
+                            break
+                    except NoSuchElementException:
+                        continue
                 if url and not url.startswith("http"):
                     url = "https://jobs.apple.com" + url
-                location = self.safe_text(card.find_element(By.CSS_SELECTOR,
-                    ".table-col-2, .location"))
+                try:
+                    location = self.safe_text(card.find_element(
+                        By.CSS_SELECTOR, ".table-col-2, .location, [class*='location'], td:nth-child(2)"))
+                except NoSuchElementException:
+                    pass
                 if title:
-                    jobs.append(self.build_job(title=title, location=location, url=url))
+                    jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
             except Exception:
                 continue
         return jobs
 
 
-# ── NETFLIX ─────────────────────────────────────────────────────
-class NetflixScraper(BaseScraper):
-    def scrape(self, driver) -> list:
-        driver.get(self.careers_url)
-        time.sleep(4)
-        self.slow_scroll(driver)
-        jobs = []
-        cards = driver.find_elements(By.CSS_SELECTOR,
-            ".opportunity, li[class*='css-'], .job-result")
-        for card in cards[:20]:
-            try:
-                title_el = card.find_element(By.CSS_SELECTOR, "a, h3")
-                title    = self.safe_text(title_el)
-                url      = self.safe_attr(title_el, "href")
-                location = self.safe_text(card.find_element(By.CSS_SELECTOR,
-                    "[class*='location'], .location"))
-                if title:
-                    jobs.append(self.build_job(title=title, location=location, url=url))
-            except Exception:
-                continue
-        return jobs
 
 
 # ── TD BANK ─────────────────────────────────────────────────────
@@ -443,7 +561,7 @@ def get_scraper(company: dict):
         "Microsoft Canada":    MicrosoftScraper,
         "Meta Canada":         MetaScraper,
         "Apple Canada":        AppleScraper,
-        "Netflix Canada":      NetflixScraper,
+        "Netflix Canada":      NetflixScraper,   # API-based
         "Shopify":             ShopifyScraper,
         "IBM Canada":          IBMScraper,
         "Scotiabank":          ScotiabankScraper,

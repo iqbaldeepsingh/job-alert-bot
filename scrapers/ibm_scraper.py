@@ -1,5 +1,6 @@
 import time
 import logging
+import requests
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -8,76 +9,125 @@ from scrapers.base_scraper import BaseScraper
 
 logger = logging.getLogger(__name__)
 
+# IBM Canada job search — updated URL (old /jobs path returns 404)
 _SEARCH_URL = (
-    "https://careers.ibm.com/jobs"
-    "?field_keyword_08[0]=data%20engineer"
-    "&field_country_tax_name[0]=Canada"
+    "https://careers.ibm.com/en_US/careers/search"
+    "?q=data+engineer&location=Canada"
 )
 
-_JOB_LINK_SELECTORS = [
-    "a[href*='/job/']",
-    ".job-list-item a",
-    "li.ibm-job-result a",
-    ".ibm--grid a[href*='jobId']",
-    "a[data-jobid]",
+# IBM uses a custom SPA; selectors as of 2025
+_CARD_SELECTORS = [
+    "[data-ph-id]",                        # IBM PeopleHQ job cards
+    ".job-tile",
+    ".ibm-job-tile",
+    "li.job-listing-item",
+    "li[class*='job']",
+    ".positions-list li",
+    "article[class*='job']",
+    ".job-result-card",
+    "[class*='job-card']",
+    "[class*='position']",
 ]
 
 _TITLE_SELECTORS = [
-    ".job-title", "h3", "h2", "[class*='title']",
+    "[data-ph-id='ph-job-title'] a",
+    ".job-title a",
+    ".position-title a",
+    "h3 a", "h2 a",
+    "a[href*='/careers/JobDetail']",
+    "a[href*='/en_US/careers/']",
+    ".title a",
+    "a",
 ]
 
 _LOCATION_SELECTORS = [
-    ".job-location", ".location", "[class*='location']",
-]
-
-_CARD_SELECTORS = [
-    ".ibm-col-sm-4.ibm-col-medium-4",
-    "li.ibm-job-result",
-    ".job-listing-item",
-    ".job-result",
-    "article",
+    "[data-ph-id='ph-job-location']",
+    ".job-location",
+    ".location",
+    "[class*='location']",
+    "[class*='city']",
 ]
 
 
 class IBMScraper(BaseScraper):
 
     def scrape(self, driver) -> list:
-        driver.get(_SEARCH_URL)
-        time.sleep(6)
+        # Try API first (IBM uses a GraphQL/REST endpoint internally)
+        jobs = self._try_api()
+        if jobs is not None:
+            return jobs
 
-        # Wait for job listings to appear
+        # Fall back to Selenium
+        return self._scrape_selenium(driver)
+
+    def _try_api(self):
+        """IBM careers API — returns None if unavailable."""
+        try:
+            r = requests.get(
+                "https://careers.ibm.com/api/jobs/v1/search",
+                params={"keyword": "data engineer", "country": "Canada",
+                        "start": 0, "limit": 50},
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=10,
+            )
+            if r.status_code != 200:
+                return None
+            data = r.json()
+            jobs = []
+            for item in data.get("jobs", data.get("results", [])):
+                title = item.get("title", "") or item.get("jobTitle", "")
+                if not self.is_data_role(title):
+                    continue
+                location = (item.get("location", "") or
+                            item.get("primaryLocation", "") or "Canada")
+                if not self.is_canada_job(location):
+                    continue
+                url = (item.get("url", "") or
+                       item.get("applyUrl", "") or
+                       f"https://careers.ibm.com/en_US/careers/JobDetail?jobId={item.get('jobId','')}")
+                jobs.append(self.build_job(title=title, location=location, url=url))
+            logger.info(f"[IBM Canada] API: {len(jobs)} jobs")
+            return jobs
+        except Exception:
+            return None
+
+    def _scrape_selenium(self, driver) -> list:
+        driver.get(_SEARCH_URL)
+        time.sleep(7)  # IBM SPA loads slowly
+
         cards = []
         for sel in _CARD_SELECTORS:
             try:
-                WebDriverWait(driver, 15).until(
+                WebDriverWait(driver, 12).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, sel))
                 )
-                cards = driver.find_elements(By.CSS_SELECTOR, sel)
-                if len(cards) > 1:
-                    logger.info(f"[IBM] Found {len(cards)} cards with: {sel}")
+                found = driver.find_elements(By.CSS_SELECTOR, sel)
+                if len(found) > 1:
+                    cards = found
+                    logger.info(f"[IBM] {len(cards)} cards with: {sel}")
                     break
             except TimeoutException:
                 continue
 
-        # Fallback: try job links directly
         if not cards:
             self.slow_scroll(driver)
             time.sleep(3)
             for sel in _CARD_SELECTORS:
-                cards = driver.find_elements(By.CSS_SELECTOR, sel)
-                if len(cards) > 1:
+                found = driver.find_elements(By.CSS_SELECTOR, sel)
+                if len(found) > 1:
+                    cards = found
                     break
 
         if not cards:
             # Last resort: grab all job-related links
-            logger.warning("[IBM] No job cards found — trying link extraction")
+            logger.warning("[IBM] No cards found — extracting links")
             return self._extract_from_links(driver)
 
         self.slow_scroll(driver)
         time.sleep(2)
 
         jobs = []
-        for card in cards[:25]:
+        for card in cards[:30]:
             try:
                 title, url, location = "", "", ""
 
@@ -85,27 +135,21 @@ class IBMScraper(BaseScraper):
                     try:
                         el = card.find_element(By.CSS_SELECTOR, tsel)
                         title = self.safe_text(el)
+                        url = self.safe_attr(el, "href")
                         if title:
                             break
                     except NoSuchElementException:
                         continue
 
                 if not title:
-                    try:
-                        link_el = card.find_element(By.CSS_SELECTOR, "a")
-                        title = self.safe_text(link_el)
-                        url = self.safe_attr(link_el, "href")
-                    except NoSuchElementException:
-                        continue
-
-                if not title:
-                    continue
-
-                if not url:
+                    title = self.safe_text(card)
                     try:
                         url = self.safe_attr(card.find_element(By.CSS_SELECTOR, "a"), "href")
                     except NoSuchElementException:
                         pass
+
+                if not title or len(title) < 4:
+                    continue
 
                 for lsel in _LOCATION_SELECTORS:
                     try:
@@ -129,13 +173,12 @@ class IBMScraper(BaseScraper):
 
     def _extract_from_links(self, driver) -> list:
         jobs = []
-        for sel in _JOB_LINK_SELECTORS:
-            links = driver.find_elements(By.CSS_SELECTOR, sel)
-            if links:
-                for link in links[:25]:
-                    title = self.safe_text(link)
-                    url = self.safe_attr(link, "href")
-                    if title and len(title) > 5:
-                        jobs.append(self.build_job(title=title, location="Canada", url=url))
-                break
+        links = driver.find_elements(By.CSS_SELECTOR,
+            "a[href*='/careers/JobDetail'], a[href*='/en_US/careers/'], a[href*='jobId']")
+        for link in links[:30]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if title and len(title) > 5:
+                jobs.append(self.build_job(title=title, location="Canada", url=url))
+        logger.info(f"[IBM] Link extraction: {len(jobs)} jobs")
         return jobs

@@ -12,12 +12,14 @@ logger = logging.getLogger(__name__)
 
 JOB_CARD_SELECTORS = [
     "[data-automation-id='jobItem']",
+    "li[data-automation-id='jobItem']",
+    "[data-automation-id='compositeContainer'] li",
+    "ul[data-automation-id='jobResults'] li",
     "li[class*='css-'][data-automation-id]",
     "li.css-1q2dra3",
-    "[data-automation-id='compositeContainer']",
     "ul[role='list'] li",
-    ".css-1q2dra3",
     "li[class*='css-']",
+    "[class*='job-listing'] li",
 ]
 
 
@@ -102,24 +104,33 @@ class WorkdayScraper(BaseScraper):
 
     def _scrape_selenium(self, driver) -> list:
         driver.get(self.careers_url)
-        time.sleep(5)
+        time.sleep(8)  # Workday SPAs need extra time
+
+        # Wait for page fully loaded — check for job results container
+        try:
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR,
+                     "[data-automation-id='jobItem'], [data-automation-id='jobResults'], "
+                     "ul[role='list'], li[class*='css-']")
+                )
+            )
+        except TimeoutException:
+            pass
 
         cards = []
         for sel in JOB_CARD_SELECTORS:
             try:
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, sel))
-                )
                 cards = driver.find_elements(By.CSS_SELECTOR, sel)
-                if cards:
+                if len(cards) > 1:
                     logger.info(f"[{self.company_name}] Selenium cards with: {sel}")
                     break
-            except TimeoutException:
+            except Exception:
                 continue
 
         if not cards:
             try:
-                driver.execute_script("window.scrollTo(0, 500)")
+                self.slow_scroll(driver)
                 time.sleep(3)
                 cards = self._find_job_cards(driver)
             except Exception:

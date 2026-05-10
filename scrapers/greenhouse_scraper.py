@@ -46,6 +46,10 @@ GREENHOUSE_SLUGS = {
     "LinkedIn Canada":            "linkedin",
     "Stripe Canada":              "stripe",
     "Unity Technologies Canada":  "unity3d",
+    # New companies — verified working
+    "Affirm Canada":              "affirm",
+    "Okta Canada":                "okta",
+    "Robinhood Canada":           "robinhood",
 }
 
 # Slugs verified to work — skip +inc/+hq fallbacks for these
