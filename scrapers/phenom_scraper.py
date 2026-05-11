@@ -51,6 +51,10 @@ PHENOM_CONFIGS = {
         "search_url":       "https://careers.roche.com/global/en/search-results?keywords=data+engineer&location=Canada",
         "job_url_template": "https://careers.roche.com/global/en/job/{jobSeqNo}/{slug}",
     },
+    "PwC Canada": {
+        "search_url":       "https://jobs-ca.pwc.com/ca/en/search-results?keywords=data+engineer",
+        "job_url_template": "https://jobs-ca.pwc.com/ca/en/job/{jobSeqNo}/{slug}",
+    },
 }
 
 

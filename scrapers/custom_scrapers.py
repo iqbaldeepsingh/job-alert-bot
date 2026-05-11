@@ -1470,6 +1470,11 @@ def get_scraper(company: dict):
         "City of Toronto":            J2WScraper,
         "Infosys Canada":             InfosysScraper,
         # iCIMS
+        "KPMG Canada":                lambda c: ICIMSScraper(
+            c,
+            "https://kpmgca.icims.com/jobs/search?ss=1&searchKeyword=data+engineer&searchLocation=Canada",
+            "Canada",
+        ),
         "Mackenzie Investments":      lambda c: ICIMSScraper(
             c,
             "https://careersen-mackenzieinvestments.icims.com/jobs/search?ss=1&searchKeyword=data+engineer&searchLocation=Canada",

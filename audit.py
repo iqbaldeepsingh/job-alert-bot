@@ -38,6 +38,7 @@ CUSTOM_WITH_DEDICATED = {
     "iA Financial Group", "PayPal Canada", "Oracle Canada",
     "WELL Health Technologies", "Stantec", "Pfizer Canada", "Klick Health",
     "Infosys Canada",
+    "KPMG Canada",
 }
 
 STATUS_OK    = "✅ working"
