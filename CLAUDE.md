@@ -73,9 +73,48 @@ python audit.py                 # test all API scrapers, print confidence report
 - **86 GenericScraper** companies return 0 (planned: add scrapers or skip permanently)
 - **0 errors** across all API scrapers
 
+## Recently fixed (current session)
+- **Apple** — Selenium scraper fixed: correct `a[href*='/details/']` selectors, `is_data_role` added, deduplication added
+- **Meta** — Removed unstable auto-generated class selectors (`._8muv` etc.), added `/profile/job_details/` link fallback, added `is_data_role`
+- **Google** — Added missing `is_data_role` filter to card loop and link fallback
+- **IBM** — Fixed `is_data_role` + `is_canada_job` in Selenium path; API (`/api/jobs/v1/search`) returns 404, Selenium is active path
+- **TD Bank** — Confirmed working via WorkdayScraper (92 jobs); `TDBankScraper` class in custom_scrapers.py is dead code
+- **Scotiabank** — Two class definitions in custom_scrapers.py (lines ~496 and ~544); Python uses second one (SAP SuccessFactors version) which is correct
+
+## Next session: fix 18 GenericScraper companies
+These companies have `"scraper":"custom"` in settings.py but are NOT in the `dedicated` dict in `get_scraper()` → fall through to `GenericScraper` → return 0 jobs.
+
+**Approach for each**: identify actual ATS → either update `"scraper"` type in settings.py OR write dedicated class and add to `dedicated` dict.
+
+| Company | careers_url | Known ATS / notes |
+|---------|-------------|-------------------|
+| Goldman Sachs Canada | `https://www.goldmansachs.com/careers/search#ss=data+engineer` | Apollo GraphQL |
+| Uber Canada | `https://www.uber.com/global/en/careers/list/?query=data+engineer...` | Custom |
+| Atlassian Canada | `https://www.atlassian.com/company/careers/all-jobs?team=Engi...` | Likely Workday (auth) |
+| Intuit Canada | `https://jobs.intuit.com/search-jobs?k=data+engineer&l=Canada` | Radancy |
+| Tesla Canada | `https://www.tesla.com/careers/search?query=data+engineer&loc...` | Akamai-protected |
+| Deloitte Canada | `https://careers.deloitte.ca/search-jobs/?k=data+engineer&l=C...` | SAP SuccessFactors |
+| TELUS Health | `https://www.telus.com/en/about/careers/search-results?search...` | Custom |
+| Canadian Tire Corporation | `https://careers.canadiantire.ca/search/?q=data+engineer` | Custom |
+| Wayfair Canada | `https://www.wayfair.com/careers/jobs?country=Canada&query=da...` | Likely Greenhouse |
+| Government of Canada | `https://www.canada.ca/en/services/jobs/opportunities/governm...` | GC Jobs API |
+| Statistics Canada | `https://www.statcan.gc.ca/en/about/jobs` | GC Jobs API |
+| Bank of Canada | `https://careers.bankofcanada.ca/search/?q=data+engineer` | Custom (Taleo?) |
+| Kinaxis | `https://www.kinaxis.com/en/careers` | Unknown |
+| Clio | `https://www.clio.com/careers` | Likely Greenhouse/Lever |
+| Coveo | `https://www.coveo.com/en/company/careers` | Unknown |
+| Layer6 AI (TD) | `https://layer6.ai/careers` | Unknown (small team) |
+| Scotiabank Digital Factory | `https://www.scotiabank.com/ca/en/about/careers/search-for-jo...` | SAP SuccessFactors |
+| SAP Canada | `https://jobs.sap.com/search/?q=data+engineer&location=Canada` | SAP SuccessFactors API |
+
+**Quick wins (API-based, no Selenium)**:
+- SAP Canada → SAP SuccessFactors API (same as Scotiabank's existing scraper)
+- Wayfair → test `greenhouse` scraper with slug `wayfair`
+- Clio → test `greenhouse` scraper with slug `clio`
+- Deloitte → SAP SuccessFactors (same API pattern)
+
 ## Known issues / pending work
 - **ChromeDriver**: uses `browser-actions/setup-chrome@v1` to auto-match versions
-- **`custom` scraper = not implemented** for: Goldman Sachs (Apollo GraphQL), Tesla (Akamai), Atlassian (Workday auth), Intuit (Radancy), Deloitte (SAP SF), Uber, TELUS Health, Canadian Tire, Kinaxis, Clio, Coveo
 - **Workday 422** (CSRF) companies — Selenium fallback: National Bank, Sun Life, Desjardins, Equifax, Ontario Health, Export Dev Canada, Ceridian, Morgan Stanley, OpenText, Loblaw
 - **Sun Life** — Workday board slug unknown; loads search URL via Selenium
 - **HashiCorp Canada** — Acquired by IBM 2024; no active board → GenericScraper

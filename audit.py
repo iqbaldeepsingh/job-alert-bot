@@ -16,10 +16,29 @@ from scrapers.custom_scrapers import get_scraper, GenericScraper
 
 API_SCRAPERS  = {"greenhouse", "lever", "workday", "phenom", "smartrecruiters",
                  "ashby", "avature", "oracle_hcm"}
-# These use Selenium — can't be tested without Chrome
-CUSTOM_WITH_DEDICATED = {"Shopify", "Google Canada", "Meta Canada", "Apple Canada",
-                         "Netflix Canada", "IBM Canada", "Scotiabank"}
-# Amazon + Microsoft are now API-based; they go through normal API test path
+# These use Selenium only — can't be tested without Chrome
+CUSTOM_WITH_DEDICATED = {
+    # Big tech
+    "Google Canada", "Meta Canada", "Apple Canada", "Netflix Canada",
+    "Shopify", "IBM Canada",
+    # Banks / dedicated Selenium
+    "Scotiabank",
+    "Microsoft Canada",
+    "Uber Canada",
+    # j2w (SAP SuccessFactors) — Selenium
+    "Deloitte Canada", "SAP Canada", "TELUS Health", "Scotiabank Digital Factory",
+    "HCL Technologies Canada", "Wipro Canada", "Capgemini Canada", "City of Toronto",
+    # iCIMS
+    "Kinaxis", "Mackenzie Investments",
+    # DayforceHCM
+    "Questrade", "LifeLabs", "MindBridge AI",
+    # Other dedicated Selenium
+    "Atlassian Canada", "Intuit Canada", "Clio", "Coveo",
+    "TCS Canada", "Cognizant Canada",
+    "iA Financial Group", "PayPal Canada", "Oracle Canada",
+    "WELL Health Technologies", "Stantec", "Pfizer Canada", "Klick Health",
+    "Infosys Canada",
+}
 
 STATUS_OK    = "✅ working"
 STATUS_ZERO  = "⚠️  0 jobs"
