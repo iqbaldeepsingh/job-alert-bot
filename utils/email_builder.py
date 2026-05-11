@@ -29,35 +29,26 @@ def build_level_badge(level: str) -> str:
 
 
 def build_job_row(job: dict) -> str:
-    skills_html = "".join(
-        f'<span style="background:#E6F1FB;color:#0C447C;padding:2px 7px;'
-        f'border-radius:8px;font-size:11px;margin-right:4px;">{s}</span>'
-        for s in job.get("skills", [])[:5]
-    )
-    apply_btn = ""
-    if job.get("url"):
-        apply_btn = (
-            f'<a href="{job["url"]}" style="display:inline-block;margin-top:6px;'
-            f'padding:4px 12px;background:#185FA5;color:#fff;text-decoration:none;'
-            f'border-radius:6px;font-size:12px;">Apply Now →</a>'
-        )
-    salary = f'<span style="color:#3B6D11;font-size:12px;"> 💰 {job["salary"]}</span>' \
-             if job.get("salary") else ""
+    skills = ", ".join(job.get("skills", [])[:4])
+    salary = f' · 💰 {job["salary"]}' if job.get("salary") else ""
+    url    = job.get("url", "")
+    title  = f'<a href="{url}" style="color:#0C447C;text-decoration:none;font-weight:600;font-size:13px;">{job["title"]}</a>' \
+             if url else f'<strong style="color:#0C447C;font-size:13px;">{job["title"]}</strong>'
+    level_colors = {
+        "Staff / Lead": "#3C3489", "Senior": "#633806",
+        "Mid-Level": "#0C447C",   "Entry Level": "#27500A",
+    }
+    lc = level_colors.get(job.get("level", ""), "#444")
+    level = f'<span style="color:{lc};font-size:11px;font-weight:600;">[{job.get("level","")}]</span>'
 
     return f"""
     <tr>
-      <td style="padding:14px 0;border-bottom:1px solid #eee;">
-        <strong style="font-size:14px;color:#0C447C;">{job['title']}</strong>
-        &nbsp;{build_level_badge(job.get('level',''))}
-        {salary}<br>
-        <span style="font-size:12px;color:#555;">
-          🏢 {job['company']} &nbsp;·&nbsp;
-          📍 {job.get('location','Canada')} &nbsp;·&nbsp;
-          💼 {job.get('type','Full-time')} &nbsp;·&nbsp;
-          🕐 {job.get('posted','Recent')}
-        </span><br>
-        <div style="margin-top:5px;">{skills_html}</div>
-        {apply_btn}
+      <td style="padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:12px;">
+        {title} {level}{salary}<br>
+        <span style="color:#666;">
+          {job['company']} · {job.get('location','Canada')} · {job.get('posted','Recent')}
+          {(' · ' + skills) if skills else ''}
+        </span>
       </td>
     </tr>"""
 
