@@ -16,7 +16,7 @@ PHENOM_CONFIGS = {
         "job_url_template": "https://jobs.rbc.com/ca/en/job/{jobSeqNo}/{slug}",
     },
     "Manulife": {
-        "search_url":       "https://careers.manulife.com/global/en/search-results?keywords=data+engineer",
+        "search_url":       "https://careers.manulife.com/global/en/search-results?keywords=data+engineer&location=Canada",
         "job_url_template": "https://careers.manulife.com/global/en/job/{jobSeqNo}/{slug}",
     },
     "Air Canada": {

@@ -68,7 +68,7 @@ class GoogleScraper(BaseScraper):
             for link in links[:30]:
                 title = self.safe_text(link)
                 url = self.safe_attr(link, "href")
-                if title and len(title) > 5:
+                if title and self.is_data_role(title):
                     jobs.append(self.build_job(title=title, location="Canada", url=url))
             return jobs
 
@@ -84,6 +84,8 @@ class GoogleScraper(BaseScraper):
                             break
                     except NoSuchElementException:
                         continue
+                if not title or not self.is_data_role(title):
+                    continue
                 try:
                     url = self.safe_attr(card.find_element(By.CSS_SELECTOR, "a"), "href")
                 except NoSuchElementException:
@@ -95,8 +97,7 @@ class GoogleScraper(BaseScraper):
                             break
                     except NoSuchElementException:
                         continue
-                if title:
-                    jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
+                jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
             except Exception:
                 continue
         return jobs
@@ -151,72 +152,111 @@ class AmazonScraper(BaseScraper):
 
 
 # ── MICROSOFT ───────────────────────────────────────────────────
-_MS_API = "https://gcsservices.careers.microsoft.com/search/api/v1/search"
-_MS_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-    "Accept":     "application/json",
-}
+_MS_SEARCH_URL = ("https://jobs.careers.microsoft.com/global/en/search"
+                  "?q=data%20engineer&lc=Canada&l=en_us&pgSz=20&o=Recent")
+_MS_CARD_SELS = [
+    "a[href*='/global/en/job/']",
+    "[class*='jobCard'] a",
+    "[class*='job-card'] a",
+    "a[href*='/en/job/']",
+]
+_MS_TITLE_SELS = [
+    "[class*='jobTitle']", "[class*='job-title']",
+    "h2", "h3", "[class*='title']",
+]
+_MS_LOC_SELS = [
+    "[class*='jobLocation']", "[class*='location']",
+    "[class*='Location']", "span[class*='loc']",
+]
 
 
 class MicrosoftScraper(BaseScraper):
-    def scrape(self, _driver) -> list:
-        jobs  = []
-        page  = 1
-        total = None
-        while True:
-            try:
-                r = requests.get(_MS_API, headers=_MS_HEADERS, timeout=15, params={
-                    "q":    "data engineer",
-                    "lc":   "Canada",
-                    "pgSz": 20,
-                    "pg":   page,
-                    "l":    "en_us",
-                })
-                if r.status_code != 200:
-                    logger.warning(f"[Microsoft] API {r.status_code} — page {page}")
-                    break
-                res = r.json().get("operationResult", {}).get("result", {})
-                if total is None:
-                    total = res.get("totalJobs", 0)
-                    logger.info(f"[Microsoft] API: {total} total jobs")
-                for job in res.get("jobs", []):
-                    title = job.get("title", "")
-                    if not self.is_data_role(title):
-                        continue
-                    location = job.get("primaryLocation", "Canada")
-                    if not self.is_canada_job(location):
-                        continue
-                    job_id = job.get("jobId", "")
-                    url = (f"https://jobs.careers.microsoft.com/global/en/job/{job_id}/"
-                           if job_id else "")
-                    jobs.append(self.build_job(
-                        title=title, location=location, url=url,
-                        posted=job.get("postingDate", "Recent"),
-                    ))
-                fetched = page * 20
-                if fetched >= (total or 0) or not res.get("jobs"):
-                    break
-                page += 1
-            except Exception as e:
-                logger.error(f"[Microsoft] API error: {e}")
+    def scrape(self, driver) -> list:
+        driver.get(_MS_SEARCH_URL)
+        time.sleep(6)
+        try:
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "a[href*='/global/en/job/'], a[href*='/en/job/']")
+                )
+            )
+        except TimeoutException:
+            logger.warning("[Microsoft] Timed out waiting for job links")
+
+        self.slow_scroll(driver)
+
+        links = []
+        for sel in _MS_CARD_SELS:
+            links = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(links) > 1:
+                logger.info(f"[Microsoft] {len(links)} job links with: {sel}")
                 break
-        logger.info(f"[Microsoft Canada] {len(jobs)} Canada data jobs")
+
+        jobs = []
+        seen_urls = set()
+        for link in links[:30]:
+            try:
+                url = self.safe_attr(link, "href")
+                if not url or url in seen_urls:
+                    continue
+                seen_urls.add(url)
+
+                title = ""
+                for tsel in _MS_TITLE_SELS:
+                    try:
+                        el = link.find_element(By.CSS_SELECTOR, tsel)
+                        title = self.safe_text(el)
+                        if title:
+                            break
+                    except NoSuchElementException:
+                        continue
+                if not title:
+                    title = self.safe_text(link)
+                if not title or not self.is_data_role(title):
+                    continue
+
+                location = ""
+                parent = link
+                for _ in range(4):
+                    try:
+                        parent = parent.find_element(By.XPATH, "..")
+                    except Exception:
+                        break
+                    for lsel in _MS_LOC_SELS:
+                        try:
+                            location = self.safe_text(parent.find_element(By.CSS_SELECTOR, lsel))
+                            if location:
+                                break
+                        except NoSuchElementException:
+                            continue
+                    if location:
+                        break
+
+                if not self.is_canada_job(location or "Canada"):
+                    continue
+
+                jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
+            except Exception:
+                continue
+
+        logger.info(f"[Microsoft Canada] {len(jobs)} Canada data jobs via Selenium")
         return jobs
 
 
 # ── META ────────────────────────────────────────────────────────
 _META_CARD_SELS  = [
-    "[data-testid='job-card']", "div[data-testid='job-listing-card']",
-    "._8muv", "._8iwr", "div[class*='job']",
-    ".jobs-list-item", "li[class*='job']",
-    "a[href*='/jobs/']",
+    "[data-testid='job-card']",
+    "div[data-testid='job-listing-card']",
+    "div[class*='job']",
+    ".jobs-list-item",
+    "li[class*='job']",
 ]
 _META_TITLE_SELS = [
-    "[data-testid='job-title']", "a span", "._8hq4 span",
-    "h3", "h2", "[class*='title']",
+    "[data-testid='job-title']",
+    "h3", "h2", "[class*='title']", "a span", "span",
 ]
 _META_LOC_SELS   = [
-    "[data-testid='job-listing-location']", "._8hq6",
+    "[data-testid='job-listing-location']",
     "[class*='location']", ".location",
 ]
 
@@ -226,9 +266,10 @@ class MetaScraper(BaseScraper):
         driver.get(self.careers_url)
         time.sleep(6)
         try:
-            WebDriverWait(driver, 20).until(
+            WebDriverWait(driver, 25).until(
                 EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "[data-testid='job-card'], ._8muv, a[href*='/jobs/']")
+                    (By.CSS_SELECTOR,
+                     "[data-testid='job-card'], a[href*='/profile/job_details/'], div[class*='job']")
                 )
             )
         except TimeoutException:
@@ -238,12 +279,46 @@ class MetaScraper(BaseScraper):
 
         cards = []
         for sel in _META_CARD_SELS:
-            cards = driver.find_elements(By.CSS_SELECTOR, sel)
-            if len(cards) > 1:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(found) > 1:
+                cards = found
                 logger.info(f"[Meta] {len(cards)} cards with: {sel}")
                 break
 
         jobs = []
+        if not cards:
+            # fallback: extract directly from job detail links
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/profile/job_details/']")
+            seen: set = set()
+            for link in links[:50]:
+                try:
+                    url = self.safe_attr(link, "href")
+                    if not url or url in seen:
+                        continue
+                    seen.add(url)
+                    title = self.safe_text(link)
+                    if not title:
+                        try:
+                            parent = link.find_element(By.XPATH, "..")
+                            title = self.safe_text(parent)
+                        except Exception:
+                            pass
+                    if not title or not self.is_data_role(title):
+                        continue
+                    location = ""
+                    try:
+                        parent = link.find_element(By.XPATH, "..")
+                        location = self.safe_text(parent.find_element(
+                            By.CSS_SELECTOR, "[class*='location'], span"))
+                    except Exception:
+                        pass
+                    jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
+                except Exception:
+                    continue
+            logger.info(f"[Meta] {len(jobs)} Canada data jobs (link fallback)")
+            return jobs
+
+        seen = set()
         for card in cards[:25]:
             try:
                 title, url, location = "", "", ""
@@ -257,10 +332,15 @@ class MetaScraper(BaseScraper):
                         continue
                 if not title:
                     title = self.safe_text(card)
+                if not title or not self.is_data_role(title):
+                    continue
                 try:
                     url = self.safe_attr(card.find_element(By.CSS_SELECTOR, "a"), "href")
                 except NoSuchElementException:
                     pass
+                if url in seen:
+                    continue
+                seen.add(url)
                 for lsel in _META_LOC_SELS:
                     try:
                         location = self.safe_text(card.find_element(By.CSS_SELECTOR, lsel))
@@ -268,22 +348,32 @@ class MetaScraper(BaseScraper):
                             break
                     except NoSuchElementException:
                         continue
-                if title and len(title) > 4:
-                    jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
+                jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
             except Exception:
                 continue
+
+        logger.info(f"[Meta] {len(jobs)} Canada data jobs")
         return jobs
 
 
 # ── APPLE ───────────────────────────────────────────────────────
 _APPLE_CARD_SELS  = [
-    "tbody tr", ".table-row",
-    "[class*='table-row']", "li[class*='job']",
-    "[data-id]", "div[class*='job']",
+    "tr.table-row",
+    "div.table-row",
+    "tbody tr",
+    "[class*='table-row']",
+    "li[class*='job']",
 ]
 _APPLE_TITLE_SELS = [
-    "a.table--advanced-search__title", "a[href*='/details/']",
-    "a", "h3", "h2",
+    "a.table--advanced-search__title",
+    "a[href*='/details/']",
+    "a",
+]
+_APPLE_LOC_SELS = [
+    "span.table--advanced-search__job-location",
+    ".table-col-2",
+    "[class*='location']",
+    "td:nth-child(2)",
 ]
 
 
@@ -292,9 +382,9 @@ class AppleScraper(BaseScraper):
         driver.get(self.careers_url)
         time.sleep(5)
         try:
-            WebDriverWait(driver, 20).until(
+            WebDriverWait(driver, 25).until(
                 EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "tbody tr, [class*='table-row'], a[href*='/details/']")
+                    (By.CSS_SELECTOR, "a[href*='/details/'], tr.table-row, div.table-row")
                 )
             )
         except TimeoutException:
@@ -303,23 +393,47 @@ class AppleScraper(BaseScraper):
 
         cards = []
         for sel in _APPLE_CARD_SELS:
-            cards = driver.find_elements(By.CSS_SELECTOR, sel)
-            if len(cards) > 1:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(found) > 1:
+                cards = found
                 logger.info(f"[Apple] {len(cards)} cards with: {sel}")
                 break
 
+        jobs = []
         if not cards:
-            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/details/'], a[href*='jobs.apple.com']")
-            jobs = []
-            for link in links[:30]:
-                title = self.safe_text(link)
-                url = self.safe_attr(link, "href")
-                if title and len(title) > 5:
-                    jobs.append(self.build_job(title=title, location="Canada", url=url))
+            # fallback: extract from job detail links directly
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/details/']")
+            seen: set = set()
+            for link in links[:50]:
+                try:
+                    url = self.safe_attr(link, "href")
+                    if not url or url in seen:
+                        continue
+                    seen.add(url)
+                    title = self.safe_text(link)
+                    if not title:
+                        # parse title from URL slug: /details/{id}/{slug}?team=X
+                        slug = url.split("/details/")[-1].split("?")[0]
+                        parts = slug.split("/")
+                        if len(parts) > 1:
+                            title = parts[-1].replace("-", " ").title()
+                    if not title or not self.is_data_role(title):
+                        continue
+                    location = ""
+                    try:
+                        parent = link.find_element(By.XPATH, "..")
+                        location = self.safe_text(parent.find_element(
+                            By.CSS_SELECTOR, "span[class*='location'], span[class*='subtitle']"))
+                    except Exception:
+                        pass
+                    jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
+                except Exception:
+                    continue
+            logger.info(f"[Apple] {len(jobs)} Canada data jobs (link fallback)")
             return jobs
 
-        jobs = []
-        for card in cards[:25]:
+        seen = set()
+        for card in cards[:50]:
             try:
                 title, url, location = "", "", ""
                 for tsel in _APPLE_TITLE_SELS:
@@ -331,17 +445,25 @@ class AppleScraper(BaseScraper):
                             break
                     except NoSuchElementException:
                         continue
+                if not title or not self.is_data_role(title):
+                    continue
+                if url in seen:
+                    continue
+                seen.add(url)
                 if url and not url.startswith("http"):
                     url = "https://jobs.apple.com" + url
-                try:
-                    location = self.safe_text(card.find_element(
-                        By.CSS_SELECTOR, ".table-col-2, .location, [class*='location'], td:nth-child(2)"))
-                except NoSuchElementException:
-                    pass
-                if title:
-                    jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
+                for lsel in _APPLE_LOC_SELS:
+                    try:
+                        location = self.safe_text(card.find_element(By.CSS_SELECTOR, lsel))
+                        if location:
+                            break
+                    except NoSuchElementException:
+                        continue
+                jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
             except Exception:
                 continue
+
+        logger.info(f"[Apple] {len(jobs)} Canada data jobs")
         return jobs
 
 

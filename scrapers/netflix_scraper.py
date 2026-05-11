@@ -11,17 +11,28 @@ class NetflixScraper(BaseScraper):
 
     def scrape(self, _driver) -> list:
         try:
-            r = requests.get(_API_URL, timeout=15,
-                             headers={"User-Agent": "Mozilla/5.0"},
-                             params={"domain": "netflix.com",
-                                     "query": "data engineer",
-                                     "location": "Canada",
-                                     "count": 50})
-            if r.status_code != 200:
-                logger.warning(f"[Netflix] API {r.status_code}")
-                return []
-            positions = r.json().get("positions", [])
-            logger.info(f"[Netflix Canada] {len(positions)} Canada positions from API")
+            all_positions = []
+            start = 0
+            num = 50
+            while True:
+                r = requests.get(_API_URL, timeout=15,
+                                 headers={"User-Agent": "Mozilla/5.0"},
+                                 params={"domain": "netflix.com",
+                                         "query": "data engineer",
+                                         "sort_by": "relevance",
+                                         "num": num,
+                                         "start": start})
+                if r.status_code != 200:
+                    logger.warning(f"[Netflix] API {r.status_code}")
+                    return []
+                data = r.json()
+                page = data.get("positions", [])
+                all_positions.extend(page)
+                if len(all_positions) >= data.get("count", 0) or not page:
+                    break
+                start += num
+            positions = all_positions
+            logger.info(f"[Netflix] {len(positions)} total positions, filtering for Canada")
         except Exception as e:
             logger.error(f"[Netflix] API error: {e}")
             return []

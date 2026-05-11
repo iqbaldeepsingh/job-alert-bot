@@ -82,7 +82,7 @@ class WorkdayScraper(BaseScraper):
                 if not self.is_canada_job(location):
                     continue
                 path = p.get("externalPath", "")
-                job_url = (f"https://{self._tenant}.{self._wd}.myworkdayjobs.com{path}"
+                job_url = (f"https://{self._tenant}.{self._wd}.myworkdayjobs.com/{self._board}{path}"
                            if path else self.careers_url)
                 posted = p.get("postedOn", "Recent")
                 jobs.append(self.build_job(title=title, location=location, url=job_url, posted=posted))

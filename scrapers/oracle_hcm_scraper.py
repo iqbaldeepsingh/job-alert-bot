@@ -12,10 +12,6 @@ ORACLE_HCM_TENANTS = {
 
 _API = "https://{domain}/hcmRestApi/resources/latest/recruitingCEJobRequisitions"
 
-# Oracle HCM paginates at 25 per page max; scan up to 50 pages (1250 jobs)
-MAX_PAGES = 50
-
-
 class OracleHCMScraper(BaseScraper):
 
     def scrape(self, driver) -> list:
@@ -33,8 +29,9 @@ class OracleHCMScraper(BaseScraper):
         jobs = []
         offset = 0
         limit = 25
+        total = None
 
-        for page in range(MAX_PAGES):
+        while True:
             try:
                 r = requests.get(
                     _API.format(domain=domain),
@@ -55,9 +52,9 @@ class OracleHCMScraper(BaseScraper):
                 data = r.json()
                 item = data.get("items", [{}])[0]
 
-                if page == 0:
+                if total is None:
                     total = item.get("TotalJobsCount", 0)
-                    logger.info(f"[{self.company_name}] Oracle HCM: {total} total jobs")
+                    logger.info(f"[{self.company_name}] Oracle HCM: {total} total jobs to scan")
 
                 req_list = item.get("requisitionList", [])
                 if not req_list:
@@ -89,6 +86,8 @@ class OracleHCMScraper(BaseScraper):
                     ))
 
                 offset += limit
+                if offset >= (total or 0):
+                    break
 
             except Exception as e:
                 logger.error(f"[{self.company_name}] Oracle HCM error at offset {offset}: {e}")
