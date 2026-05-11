@@ -30,22 +30,22 @@ def build_level_badge(level: str) -> str:
 
 def build_job_row(job: dict) -> str:
     skills = ", ".join(job.get("skills", [])[:4])
-    salary = f' · 💰 {job["salary"]}' if job.get("salary") else ""
+    salary = f' 💰 {job["salary"]}' if job.get("salary") else ""
     url    = job.get("url", "")
-    title  = f'<a href="{url}" style="color:#0C447C;text-decoration:none;font-weight:600;font-size:13px;">{job["title"]}</a>' \
-             if url else f'<strong style="color:#0C447C;font-size:13px;">{job["title"]}</strong>'
+    apply  = f'<a href="{url}" style="color:#fff;background:#185FA5;padding:2px 10px;border-radius:5px;font-size:11px;text-decoration:none;margin-left:8px;">Apply →</a>' if url else ""
     level_colors = {
         "Staff / Lead": "#3C3489", "Senior": "#633806",
         "Mid-Level": "#0C447C",   "Entry Level": "#27500A",
     }
     lc = level_colors.get(job.get("level", ""), "#444")
-    level = f'<span style="color:{lc};font-size:11px;font-weight:600;">[{job.get("level","")}]</span>'
+    level = f'<span style="color:{lc};font-size:11px;font-weight:600;">{job.get("level","")}</span>'
 
     return f"""
     <tr>
-      <td style="padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:12px;">
-        {title} {level}{salary}<br>
-        <span style="color:#666;">
+      <td style="padding:7px 0;border-bottom:1px solid #f0f0f0;">
+        <span style="font-size:13px;font-weight:600;color:#0C447C;">{job["title"]}</span>
+        &nbsp;{level}&nbsp;{salary}{apply}<br>
+        <span style="font-size:11px;color:#666;">
           {job['company']} · {job.get('location','Canada')} · {job.get('posted','Recent')}
           {(' · ' + skills) if skills else ''}
         </span>
