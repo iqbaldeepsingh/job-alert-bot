@@ -93,7 +93,12 @@ class IBMScraper(BaseScraper):
 
     def _scrape_selenium(self, driver) -> list:
         driver.get(_SEARCH_URL)
-        time.sleep(7)  # IBM SPA loads slowly
+        time.sleep(5)
+        # Detect AWS WAF challenge — page has no useful content
+        page_src = driver.page_source
+        if "AwsWafIntegration" in page_src or "challenge-container" in page_src:
+            logger.warning("[IBM] AWS WAF bot-protection detected — skipping")
+            return []
 
         cards = []
         for sel in _CARD_SELECTORS:

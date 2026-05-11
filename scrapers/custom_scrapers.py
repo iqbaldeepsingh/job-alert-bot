@@ -492,111 +492,71 @@ class TDBankScraper(BaseScraper):
         return jobs
 
 
-# ── SCOTIABANK ──────────────────────────────────────────────────
-class ScotiabankScraper(BaseScraper):
-    def scrape(self, driver) -> list:
-        driver.get(self.careers_url)
-        time.sleep(4)
-        self.slow_scroll(driver)
-        jobs = []
-        cards = driver.find_elements(By.CSS_SELECTOR,
-            ".jobs-search__item, .job-result-card")
-        for card in cards[:20]:
-            try:
-                title_el = card.find_element(By.CSS_SELECTOR,
-                    "a.job-name, h2 a, h3 a")
-                title    = self.safe_text(title_el)
-                url      = self.safe_attr(title_el, "href")
-                location = self.safe_text(card.find_element(By.CSS_SELECTOR,
-                    ".job-location, .location"))
-                if title:
-                    jobs.append(self.build_job(title=title, location=location, url=url))
-            except Exception:
-                continue
-        return jobs
+# ── SCOTIABANK (j2w Unify Selenium) ─────────────────────────────
+_SCOT_SEARCH = (
+    "https://jobs.scotiabank.com/search-results"
+    "?keywords=data+engineer&location=Canada&locale=en_US"
+)
 
-
-# ── SCOTIABANK (SAP SuccessFactors) ─────────────────────────────
-_SCOT_SEARCH = "https://jobs.scotiabank.com/search-results?keywords=data+engineer&location=Canada"
-
-_SAP_SF_TITLE_SELS = [
-    "td.jobTitle a",
+# j2w Unify (newer) card selectors
+_SCOT_UNIFY_SELS = [
+    "[class*='jobResultsCard'] a",
+    "[class*='jobResults'] a[href*='/job/']",
+    ".jobResultsCardHeader a",
+    ".jobResultsCardBody a",
+    "div[class*='jobResult'] a",
+]
+# j2w legacy table selectors
+_SCOT_LEGACY_SELS = [
+    "tr.even a.jobTitle, tr.odd a.jobTitle",
     "a.jobTitle",
-    ".jobTitle a",
-    "a[href*='/job/']",
-    ".jdDefaultLocFont a",
-]
-_SAP_SF_LOCATION_SELS = [
-    "td.jobLocation",
-    ".jobLocation",
-    "span.jobLocation",
-    ".location",
-]
-_SAP_SF_ROW_SELS = [
-    "tr.even, tr.odd",
-    "table.resultTable tbody tr",
-    "ul.results li",
-    ".searchResultsItem",
-    ".job-listing-item",
+    "td.jobTitle a",
+    "a[href*='/job/'][class*='jd']",
 ]
 
 
 class ScotiabankScraper(BaseScraper):
     def scrape(self, driver) -> list:
         driver.get(_SCOT_SEARCH)
-        time.sleep(5)
+        time.sleep(10)  # j2w AJAX needs time to load results
         self.slow_scroll(driver)
-
-        rows = []
-        for sel in _SAP_SF_ROW_SELS:
-            try:
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, sel))
-                )
-                rows = driver.find_elements(By.CSS_SELECTOR, sel)
-                if len(rows) > 1:
-                    break
-            except TimeoutException:
-                continue
-
-        if not rows:
-            rows = driver.find_elements(By.CSS_SELECTOR, "a[href*='/job/']")
-            jobs = []
-            for link in rows[:30]:
-                title = self.safe_text(link)
-                url   = self.safe_attr(link, "href")
-                if title and self.is_data_role(title):
-                    jobs.append(self.build_job(title=title, location="Canada", url=url))
-            logger.info(f"[Scotiabank] link fallback: {len(jobs)} jobs")
-            return jobs
+        time.sleep(3)
 
         jobs = []
-        for row in rows[:30]:
+        links = []
+
+        # Try Unify card layout first, then legacy table layout
+        for sel in _SCOT_UNIFY_SELS + _SCOT_LEGACY_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if found:
+                links = found
+                logger.info(f"[Scotiabank] {len(found)} links via: {sel}")
+                break
+
+        # Final fallback: any /job/ link on the page
+        if not links:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/job/']")
+            if links:
+                logger.info(f"[Scotiabank] link fallback: {len(links)} links")
+            else:
+                logger.warning("[Scotiabank] no job links found in DOM")
+                return []
+
+        seen_urls = set()
+        for link in links[:50]:
             try:
-                title, url, location = "", "", ""
-                for sel in _SAP_SF_TITLE_SELS:
-                    try:
-                        el    = row.find_element(By.CSS_SELECTOR, sel)
-                        title = self.safe_text(el)
-                        url   = self.safe_attr(el, "href")
-                        if title:
-                            break
-                    except NoSuchElementException:
-                        continue
-                if not title:
+                title = self.safe_text(link)
+                url   = self.safe_attr(link, "href")
+                if not title or not url or url in seen_urls:
                     continue
-                for sel in _SAP_SF_LOCATION_SELS:
-                    try:
-                        location = self.safe_text(row.find_element(By.CSS_SELECTOR, sel))
-                        if location:
-                            break
-                    except NoSuchElementException:
-                        continue
-                jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
+                seen_urls.add(url)
+                if not self.is_data_role(title):
+                    continue
+                jobs.append(self.build_job(title=title, location="Canada", url=url))
             except Exception:
                 continue
 
-        logger.info(f"[Scotiabank] SAP SF Selenium: {len(jobs)} jobs")
+        logger.info(f"[Scotiabank] {len(jobs)} jobs")
         return jobs
 
 
