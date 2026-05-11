@@ -492,22 +492,18 @@ class TDBankScraper(BaseScraper):
         return jobs
 
 
-# ── SCOTIABANK (j2w Unify Selenium) ─────────────────────────────
-_SCOT_SEARCH = (
-    "https://jobs.scotiabank.com/search-results"
-    "?keywords=data+engineer&location=Canada&locale=en_US"
-)
+# ── GENERIC j2w (SAP SuccessFactors Jobs2Web) SELENIUM ──────────
+# Reusable for Scotiabank, Deloitte, SAP Canada, TELUS Health, etc.
+# Uses self.careers_url from settings.py (must be the search-results page)
 
-# j2w Unify (newer) card selectors
-_SCOT_UNIFY_SELS = [
+_J2W_UNIFY_SELS = [
     "[class*='jobResultsCard'] a",
     "[class*='jobResults'] a[href*='/job/']",
     ".jobResultsCardHeader a",
     ".jobResultsCardBody a",
     "div[class*='jobResult'] a",
 ]
-# j2w legacy table selectors
-_SCOT_LEGACY_SELS = [
+_J2W_LEGACY_SELS = [
     "tr.even a.jobTitle, tr.odd a.jobTitle",
     "a.jobTitle",
     "td.jobTitle a",
@@ -515,34 +511,33 @@ _SCOT_LEGACY_SELS = [
 ]
 
 
-class ScotiabankScraper(BaseScraper):
+class J2WScraper(BaseScraper):
+    """Generic SAP SuccessFactors j2w Unify Selenium scraper."""
+
     def scrape(self, driver) -> list:
-        driver.get(_SCOT_SEARCH)
-        time.sleep(10)  # j2w AJAX needs time to load results
+        driver.get(self.careers_url)
+        time.sleep(10)
         self.slow_scroll(driver)
         time.sleep(3)
 
-        jobs = []
         links = []
-
-        # Try Unify card layout first, then legacy table layout
-        for sel in _SCOT_UNIFY_SELS + _SCOT_LEGACY_SELS:
+        for sel in _J2W_UNIFY_SELS + _J2W_LEGACY_SELS:
             found = driver.find_elements(By.CSS_SELECTOR, sel)
             if found:
                 links = found
-                logger.info(f"[Scotiabank] {len(found)} links via: {sel}")
+                logger.info(f"[{self.company_name}] {len(found)} links via: {sel}")
                 break
 
-        # Final fallback: any /job/ link on the page
         if not links:
             links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/job/']")
             if links:
-                logger.info(f"[Scotiabank] link fallback: {len(links)} links")
+                logger.info(f"[{self.company_name}] link fallback: {len(links)}")
             else:
-                logger.warning("[Scotiabank] no job links found in DOM")
+                logger.warning(f"[{self.company_name}] no job links found in DOM")
                 return []
 
-        seen_urls = set()
+        seen_urls: set = set()
+        jobs = []
         for link in links[:50]:
             try:
                 title = self.safe_text(link)
@@ -556,8 +551,57 @@ class ScotiabankScraper(BaseScraper):
             except Exception:
                 continue
 
-        logger.info(f"[Scotiabank] {len(jobs)} jobs")
+        logger.info(f"[{self.company_name}] j2w: {len(jobs)} jobs")
         return jobs
+
+
+# ── SCOTIABANK (j2w — hardcoded search URL) ──────────────────────
+_SCOT_SEARCH = (
+    "https://jobs.scotiabank.com/search-results"
+    "?keywords=data+engineer&location=Canada&locale=en_US"
+)
+
+
+class ScotiabankScraper(J2WScraper):
+    def scrape(self, driver) -> list:
+        self.careers_url = _SCOT_SEARCH
+        return super().scrape(driver)
+
+
+# ── BANK OF CANADA (j2w RSS — domestic employer, all jobs are Canada) ──
+_BOC_RSS = (
+    "https://careers.bankofcanada.ca/services/rss/job/"
+    "?locale=en_US&keywords=data+engineer"
+)
+
+
+class BankOfCanadaScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        try:
+            import xml.etree.ElementTree as ET
+            r = requests.get(_BOC_RSS, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+            if r.status_code != 200:
+                logger.warning(f"[Bank of Canada] RSS {r.status_code}")
+                return []
+            root = ET.fromstring(r.content)
+            jobs = []
+            for item in root.findall(".//item"):
+                raw_title = (item.findtext("title") or "").strip()
+                url       = (item.findtext("link") or "").strip()
+                title = raw_title.split("(")[0].strip() if "(" in raw_title else raw_title
+                if not self.is_data_role(title):
+                    continue
+                try:
+                    loc_str = raw_title[raw_title.index("(")+1 : raw_title.rindex(")")]
+                    location = loc_str.split(",")[0].strip()
+                except ValueError:
+                    location = "Ottawa"
+                jobs.append(self.build_job(title=title, location=location, url=url))
+            logger.info(f"[Bank of Canada] RSS: {len(jobs)} jobs")
+            return jobs
+        except Exception as e:
+            logger.warning(f"[Bank of Canada] RSS failed: {e}")
+            return []
 
 
 # ── GENERIC FALLBACK ────────────────────────────────────────────
@@ -638,15 +682,22 @@ def get_scraper(company: dict):
 
     # Dedicated scrapers
     dedicated = {
-        "Google Canada":       GoogleScraper,
-        "Amazon / AWS Canada": AmazonScraper,
-        "Microsoft Canada":    MicrosoftScraper,
-        "Meta Canada":         MetaScraper,
-        "Apple Canada":        AppleScraper,
-        "Netflix Canada":      NetflixScraper,   # API-based
-        "Shopify":             ShopifyScraper,
-        "IBM Canada":          IBMScraper,
-        "Scotiabank":          ScotiabankScraper,
+        "Google Canada":              GoogleScraper,
+        "Amazon / AWS Canada":        AmazonScraper,
+        "Microsoft Canada":           MicrosoftScraper,
+        "Meta Canada":                MetaScraper,
+        "Apple Canada":               AppleScraper,
+        "Netflix Canada":             NetflixScraper,
+        "Shopify":                    ShopifyScraper,
+        "IBM Canada":                 IBMScraper,
+        "Scotiabank":                 ScotiabankScraper,
+        # j2w (SAP SuccessFactors) Selenium scrapers
+        "Deloitte Canada":            J2WScraper,
+        "SAP Canada":                 J2WScraper,
+        "TELUS Health":               J2WScraper,
+        "Scotiabank Digital Factory": J2WScraper,
+        # j2w RSS scraper
+        "Bank of Canada":             BankOfCanadaScraper,
     }
     if name in dedicated:
         return dedicated[name](company)
