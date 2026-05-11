@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
 Audit script — tests all API scrapers without Selenium.
-Run:  python audit.py
+
+Modes:
+  python audit.py           # data engineering mode (normal)
+  python audit.py --broad   # broad mode: replaces 'data+engineer' with 'engineer'
+                            # to confirm the scraper pipeline itself works,
+                            # regardless of whether data jobs exist today
 """
 import sys
 import logging
@@ -48,10 +53,23 @@ STATUS_SEL   = "🔵 selenium"
 STATUS_SKIP  = "⬜ custom/skip"
 
 
-def test_company(company: dict) -> dict:
-    name    = company["name"]
+def broaden_url(url: str) -> str:
+    """Replace data engineering keywords with broad 'engineer' search."""
+    replacements = [
+        ("data+engineer", "engineer"),
+        ("data%20engineer", "engineer"),
+        ("data engineer", "engineer"),
+        ("keywords=data", "keywords=engineer"),
+    ]
+    for old, new in replacements:
+        url = url.replace(old, new)
+    return url
+
+
+def test_company(company: dict, broad: bool = False) -> dict:
+    name         = company["name"]
     scraper_type = company.get("scraper", "custom")
-    result  = {"name": name, "scraper": scraper_type, "jobs": 0, "status": "", "note": ""}
+    result       = {"name": name, "scraper": scraper_type, "jobs": 0, "status": "", "note": ""}
 
     # Known Selenium-only dedicated scrapers — skip without Chrome
     if name in CUSTOM_WITH_DEDICATED:
@@ -67,17 +85,23 @@ def test_company(company: dict) -> dict:
             result["status"] = STATUS_SKIP
             result["note"]   = "GenericScraper — skipped"
             return result
-        # Has a dedicated API scraper (e.g. AmazonScraper, MicrosoftScraper)
-        # Fall through to the normal scrape attempt below.
 
     try:
-        scraper = get_scraper(company)
-        jobs    = scraper.scrape(None)   # API scrapers ignore the driver arg
-        n       = len(jobs)
+        if broad:
+            broad_company = dict(company)
+            broad_company["careers_url"] = broaden_url(company["careers_url"])
+            scraper = get_scraper(broad_company)
+            # Bypass is_data_role so any job title counts
+            scraper.is_data_role = lambda title: True
+        else:
+            scraper = get_scraper(company)
+
+        jobs = scraper.scrape(None)   # API scrapers ignore the driver arg
+        n    = len(jobs)
         result["jobs"]   = n
         result["status"] = STATUS_OK if n > 0 else STATUS_ZERO
-        result["note"]   = f"{n} Canada data jobs"
-    except AttributeError as e:
+        result["note"]   = f"{n} {'any' if broad else 'data'} jobs"
+    except AttributeError:
         # Workday fell back to Selenium (driver=None crash) — API path failed
         result["status"] = STATUS_SEL
         result["note"]   = "API failed → Selenium fallback needed"
@@ -89,18 +113,22 @@ def test_company(company: dict) -> dict:
 
 
 def main():
+    broad = "--broad" in sys.argv
+
     top100 = [c for c in COMPANIES if c.get("top100")]
     others = [c for c in COMPANIES if not c.get("top100")]
 
+    mode_label = "BROAD (all roles — scraper health check)" if broad else "DATA ENGINEERING (normal)"
     print(f"\n{'='*70}")
     print(f"  Job Alert Bot — Scraper Audit   ({len(COMPANIES)} companies total)")
+    print(f"  Mode: {mode_label}")
     print(f"{'='*70}\n")
 
     results = {}
     start = time.time()
 
     with ThreadPoolExecutor(max_workers=15) as pool:
-        futures = {pool.submit(test_company, c): c for c in COMPANIES}
+        futures = {pool.submit(test_company, c, broad): c for c in COMPANIES}
         done = 0
         for future in as_completed(futures):
             r = future.result()
@@ -122,15 +150,15 @@ def main():
             r = results[c["name"]]
             s = r["status"]
             print(f"  {r['name']:<36} {r['scraper']:<16} {s:<18} {r['note']}")
-            if s == STATUS_OK:    ok   += 1
+            if s == STATUS_OK:     ok   += 1
             elif s == STATUS_ZERO: zero += 1
-            elif s == STATUS_ERROR: err += 1
+            elif s == STATUS_ERROR: err  += 1
             elif s == STATUS_SEL:  sel  += 1
             elif s == STATUS_SKIP: skip += 1
         print(f"\n  Summary: ✅{ok}  ⚠️{zero}  ❌{err}  🔵{sel}  ⬜{skip}")
         return ok, zero, err, sel, skip
 
-    t_ok, t_zero, t_err, t_sel, t_skip = 0, 0, 0, 0, 0
+    t_ok = t_zero = t_err = t_sel = t_skip = 0
     for label, cos in [("TOP 100 COMPANIES", top100), ("REMAINING COMPANIES", others)]:
         ok, zero, err, sel, skip = print_section(label, cos)
         t_ok += ok; t_zero += zero; t_err += err; t_sel += sel; t_skip += skip
@@ -138,13 +166,19 @@ def main():
     print(f"\n{'='*70}")
     print(f"  OVERALL — {len(COMPANIES)} companies")
     print(f"  ✅ Confirmed working  : {t_ok}")
-    print(f"  ⚠️  API works, 0 jobs  : {t_zero}  (no Canada data roles posted today)")
+    if broad:
+        print(f"  ⚠️  Scraper works, 0 results: {t_zero}  (API reachable but returned nothing)")
+    else:
+        print(f"  ⚠️  API works, 0 jobs  : {t_zero}  (no Canada data roles posted today)")
     print(f"  ❌ Error / broken     : {t_err}")
     print(f"  🔵 Selenium (untested): {t_sel}  (need Chrome to verify)")
     print(f"  ⬜ GenericScraper skip: {t_skip}  (expected to return 0)")
     confirmed = t_ok + t_zero
     print(f"\n  Confirmed pipeline working: {confirmed}/{len(COMPANIES)} companies")
-    print(f"  (⚠️  means scraper works but no matching jobs posted right now)")
+    if broad:
+        print(f"  ⚠️  means scraper reached the API but got 0 results — investigate URL")
+    else:
+        print(f"  ⚠️  means scraper works but no matching jobs posted right now")
     print(f"{'='*70}\n")
 
 
