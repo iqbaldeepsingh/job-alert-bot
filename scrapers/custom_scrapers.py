@@ -850,6 +850,61 @@ class DayforceHCMScraper(BaseScraper):
         return jobs
 
 
+# ── BAMBOOHR ─────────────────────────────────────────────────────
+class BambooHRScraper(BaseScraper):
+    """BambooHR public job board API."""
+    def __init__(self, company, slug):
+        super().__init__(company)
+        self._slug = slug
+
+    def scrape(self, driver) -> list:
+        try:
+            r = requests.get(
+                f"https://{self._slug}.bamboohr.com/careers/list",
+                headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"},
+                timeout=15,
+            )
+            if r.status_code != 200:
+                logger.warning(f"[BambooHR/{self.company_name}] {r.status_code}")
+                return []
+            all_jobs = r.json().get("result", [])
+        except Exception as e:
+            logger.error(f"[BambooHR/{self.company_name}] error: {e}")
+            return []
+
+        _CA_PROVINCES = {
+            "british columbia", "ontario", "quebec", "alberta", "manitoba",
+            "saskatchewan", "nova scotia", "new brunswick", "prince edward island",
+            "newfoundland", "northwest territories", "nunavut", "yukon",
+            "bc", "on", "qc", "ab", "mb", "sk", "ns", "nb", "pe", "nl",
+        }
+        jobs = []
+        for item in all_jobs:
+            title = item.get("jobOpeningName") or item.get("title") or ""
+            if isinstance(title, dict):
+                title = title.get("label", "")
+            if not self.is_data_role(title):
+                continue
+            loc = item.get("location") or {}
+            city = (loc.get("city") or "").strip() if isinstance(loc, dict) else ""
+            state = (loc.get("state") or "").strip() if isinstance(loc, dict) else ""
+            country = (loc.get("country") or "").strip() if isinstance(loc, dict) else ""
+            is_canada = (
+                "canada" in country.lower() or
+                state.lower() in _CA_PROVINCES or
+                city.lower() in {"toronto", "vancouver", "montreal", "calgary",
+                                  "edmonton", "ottawa", "saskatoon", "winnipeg"}
+            )
+            if not is_canada:
+                continue
+            location = f"{city}, {state}, Canada" if city and state else (city or state or "Canada")
+            job_id = item.get("id", "")
+            url = f"https://{self._slug}.bamboohr.com/careers/{job_id}"
+            jobs.append(self.build_job(title=title, location=location, url=url))
+        logger.info(f"[BambooHR/{self.company_name}] {len(jobs)} Canada data jobs")
+        return jobs
+
+
 # ── iA FINANCIAL ─────────────────────────────────────────────────
 _IA_URL = "https://ia.ca/en/carrieres"
 _IA_SELS = [
@@ -1345,6 +1400,8 @@ def get_scraper(company: dict):
         # Dayforce HCM companies
         "Questrade":                   lambda c: DayforceHCMScraper(c, "qfg"),
         "LifeLabs":                    lambda c: DayforceHCMScraper(c, "lifelabs"),
+        "MindBridge AI":               lambda c: DayforceHCMScraper(c, "mindbridge"),
+        "Vendasta":                    lambda c: BambooHRScraper(c, "vendasta"),
         # Custom Selenium
         "iA Financial Group":          IAFinancialScraper,
         "PayPal Canada":               PayPalScraper,

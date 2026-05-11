@@ -15,6 +15,10 @@ ASHBY_SLUGS = {
     "Airbyte Canada":       "airbyte",
     "Astronomer Canada":    "astronomer",
     "Prefect":              "prefect",
+    "Jobber":               "getjobber",
+    "Top Hat":              "tophat",
+    "Prodigy Education":    "prodigy-education",
+    "Clearco":              "clearco",
 }
 
 _API = "https://api.ashbyhq.com/posting-api/job-board/{slug}"
