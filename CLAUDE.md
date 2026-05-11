@@ -127,6 +127,17 @@ These companies have `"scraper":"custom"` in settings.py but are NOT in the `ded
 4. New jobs sorted by seniority, emailed via Gmail SMTP
 5. If 0 new jobs → sends status email "No New Jobs" instead of skipping
 
+## Branch Workflow (mandatory from 2026-05-12)
+Each bot run cycle follows this pattern:
+1. `git checkout -b fix/description` or `feat/description`
+2. Make all related changes on the branch
+3. Merge to main
+4. Run bot → review email
+5. Document results in CHANGELOG.md
+6. Start next branch for next set of changes
+
+One branch per run cycle — not per commit, not per file. Branch stays open until tested.
+
 ## Session tips
 - `/compact` after finishing each scraper type
 - Start fresh sessions for unrelated work
