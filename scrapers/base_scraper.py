@@ -104,7 +104,6 @@ class BaseScraper:
             return False
         loc = location.lower()
 
-        # Must have an explicit Canadian location first
         canada_keywords = [
             "canada", "toronto", "vancouver", "calgary", "edmonton",
             "halifax", "ontario", "british columbia", "alberta",
@@ -113,35 +112,35 @@ class BaseScraper:
             "stellarton", "saskatoon", "st. john", "remote - canada",
             "remote – canada", "remote canada",
         ]
-        if not any(k in loc for k in canada_keywords):
-            return False
-
-        # Has a Canadian keyword — now reject if it also mentions non-Canada
-        non_canada = [
-            "remote - us", "remote – us", "remote - us:", "united states",
-            ", usa", "(usa)", "california", "new york", "texas",
-            "seattle", "san francisco", "chicago", "boston", "austin",
-            "germany", "united kingdom", "ireland", "india", "singapore",
-            "australia", "netherlands", "france", "remote - eu",
-            "bangalore", "bengaluru", "mumbai",
-            "kuala lumpur", "malaysia", "putrajaya",
-            "poland", "warsaw", "krakow", "czech", "prague",
-            "philippines", "manila", "jakarta", "indonesia",
-        ]
-        if any(kw in loc for kw in non_canada):
-            return False
-
-        return True
+        return any(k in loc for k in canada_keywords)
 
     def is_data_role(self, title: str) -> bool:
         t = title.lower()
         keywords = [
             "data engineer", "data platform", "analytics engineer",
             "big data", "databricks", "spark", "pyspark", "etl", "elt",
-            "data architect", "dataops", "ml engineer",
+            "data architect", "dataops", "ml engineer", "machine learning engineer",
             "data analyst", "pipeline engineer", "data infrastructure",
             "bi engineer", "bi developer", "business intelligence",
             "data reliability", "cloud data", "data ops",
+            "data scientist", "data science", "data management",
+            "data product", "data developer", "data dev",
+            "data governance", "ml platform", "machine learning platform",
+            "mlops", "data pipeline", "data quality", "data integration",
+            "data warehouse", "lakehouse", "data migration", "data streaming",
+            "streaming data", "real-time data", "feature engineer", "feature platform",
+            "analytics platform", "dbt developer", "kafka engineer",
+            "snowflake engineer", "flink engineer", "airflow engineer",
+            "bigquery engineer", "redshift engineer", "sql developer",
+            "report developer", "solutions engineer", "solutions architect",
+            "feeds engineer", "data security engineer", "vector database",
+            "data contract", "ai platform engineer",
+            "ingénieur de données", "ingénieur données",
+            "data cloud", "developer advocate", "chief data", "chief analytics",
+            "vp of data", "svp of data", "vp of analytics", "data analytics",
+            "architecte de données", "forward deployed", "distributed systems",
+            "production engineer", "deployment strategist", "field engineer",
+            "managing director", "cloud architect",
         ]
         return any(k in t for k in keywords)
 
