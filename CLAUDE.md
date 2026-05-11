@@ -133,3 +133,42 @@ These companies have `"scraper":"custom"` in settings.py but are NOT in the `ded
 - Verify Greenhouse slugs: `curl -s "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs" | python3 -m json.tool | head -5`
 - Verify Lever slugs: `curl -s "https://api.lever.co/v0/postings/{slug}?mode=json" | python3 -m json.tool | head -5`
 - Run `python audit.py` after adding new companies to confirm they work
+
+## Future Roadmap (Multi-user, Multi-role, Multi-country)
+
+### Goals
+- Multiple users (you, sister, others) each with their own config
+- Each user defines: email, job keywords, countries, include remote
+- Multi-country support: Canada + USA (and more)
+- Multi-role support: Data Engineer, Software Engineer, Developer, etc.
+- Easy to add new companies with minimal effort
+
+### Architecture direction
+- `config/users.yaml` — list of users with their preferences
+  ```yaml
+  users:
+    - name: Iqbal
+      email: bhullariqbaldeepsingh@gmail.com
+      keywords: ["data engineer", "analytics engineer"]
+      countries: ["Canada"]
+      include_remote: true
+    - name: Sister
+      email: sister@gmail.com
+      keywords: ["software engineer", "developer"]
+      countries: ["Canada", "USA"]
+      include_remote: true
+  ```
+- Each scraper needs `country` param (currently hardcoded to Canada)
+- Workday: `locationCountry` already supports multiple values
+- Greenhouse/Lever: filter by location string
+- Email: one digest per user
+
+### Current hardcoded things to make configurable later
+- `is_canada_job()` in base_scraper.py — needs to accept country list
+- `is_data_role()` in base_scraper.py — needs to accept keyword list
+- Canada locationCountry Workday ID: `a30a87ed25634629aa6c3958aa2b91ea`
+- USA locationCountry Workday ID: `bc33aa3152ec42d4995f4791a106ed09`
+- SMTP recipient email in .env
+
+### When to build this
+After all 205 companies are stable and tested. Build as a separate branch: feat/multi-user-config
