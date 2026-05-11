@@ -10,7 +10,7 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from config.settings import EMAIL_CONFIG, MAX_JOBS_PER_EMAIL, COMPANIES
+from config.settings import EMAIL_CONFIG, COMPANIES
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ def build_email_html(jobs: list, run_time: str) -> str:
 
     # Group by category
     by_cat = {}
-    for job in jobs[:MAX_JOBS_PER_EMAIL]:
+    for job in jobs:
         cat = job.get("category", "Other")
         by_cat.setdefault(cat, []).append(job)
 

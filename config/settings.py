@@ -22,7 +22,6 @@ TARGET_LOCATIONS = [
     "Halifax", "Ottawa", "Montreal", "Remote", "Hybrid",
 ]
 
-MAX_JOBS_PER_EMAIL = 50
 SEEN_JOBS_FILE = "data/seen_jobs.json"
 
 COMPANIES = [
