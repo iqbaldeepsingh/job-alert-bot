@@ -59,17 +59,19 @@ def scrape_all(headless: bool = True) -> list:
     total    = len(COMPANIES)
     done     = 0
 
-    # API-based (Greenhouse + Lever) — fast, no Chrome needed
-    api_cos = [c for c in COMPANIES if c.get("scraper") in ("greenhouse", "lever")]
-    # Selenium phase — skip companies with no real scraper (GenericScraper always returns 0)
+    # API-based — no Chrome needed (requests only)
+    API_TYPES = {"greenhouse", "lever", "workday", "phenom", "ashby",
+                 "smartrecruiters", "oracle_hcm", "avature"}
+    api_cos = [c for c in COMPANIES if c.get("scraper") in API_TYPES]
+    # Selenium phase — custom scrapers that need Chrome + skip GenericScraper
     sel_cos = [c for c in COMPANIES
-               if c.get("scraper") not in ("greenhouse", "lever")
+               if c.get("scraper") not in API_TYPES
                and not isinstance(get_scraper(c), GenericScraper)]
 
     logger.info(f"{'='*55}")
     logger.info(f"Total companies : {total}")
-    logger.info(f"API scrapers    : {len(api_cos)} (Greenhouse + Lever)")
-    logger.info(f"Selenium scrapers: {len(sel_cos)}")
+    logger.info(f"API scrapers    : {len(api_cos)} (no Chrome needed)")
+    logger.info(f"Selenium scrapers: {len(sel_cos)} (need Chrome)")
     logger.info(f"{'='*55}")
 
     # Phase 1 — API scrapers (10 parallel)
