@@ -1258,12 +1258,8 @@ class TCSScraper(BaseScraper):
         return jobs
 
 
-# ── KINAXIS ───────────────────────────────────────────────────────
-_KINAXIS_URL = (
-    "https://careers-kinaxis.icims.com/jobs/search"
-    "?ss=1&searchKeyword=data+engineer&searchLocation=Canada"
-)
-_KINAXIS_SELS = [
+# ── iCIMS (generic Selenium) ──────────────────────────────────────
+_ICIMS_SELS = [
     ".iCIMS_JobListingRow .iCIMS_Anchor",
     ".iCIMS_Anchor",
     "a.iCIMS_Anchor",
@@ -1271,18 +1267,24 @@ _KINAXIS_SELS = [
     "table.iCIMS_JobsTable a",
 ]
 
-class KinaxisScraper(BaseScraper):
+class ICIMSScraper(BaseScraper):
+    """Generic iCIMS Selenium scraper. Pass search URL and default location."""
+    def __init__(self, company, search_url, default_location="Canada"):
+        super().__init__(company)
+        self._search_url = search_url
+        self._default_location = default_location
+
     def scrape(self, driver) -> list:
-        driver.get(_KINAXIS_URL)
+        driver.get(self._search_url)
         time.sleep(6)
         self.slow_scroll(driver)
         time.sleep(2)
         links = []
-        for sel in _KINAXIS_SELS:
+        for sel in _ICIMS_SELS:
             found = driver.find_elements(By.CSS_SELECTOR, sel)
             if found:
                 links = found
-                logger.info(f"[Kinaxis] {len(links)} links with: {sel}")
+                logger.info(f"[iCIMS/{self.company_name}] {len(links)} links: {sel}")
                 break
         if not links:
             links = driver.find_elements(By.CSS_SELECTOR, "a[href*='icims.com/jobs/']")
@@ -1296,9 +1298,18 @@ class KinaxisScraper(BaseScraper):
             seen.add(url)
             if not self.is_data_role(title):
                 continue
-            jobs.append(self.build_job(title=title, location="Ottawa", url=url))
-        logger.info(f"[Kinaxis] {len(jobs)} jobs")
+            jobs.append(self.build_job(title=title, location=self._default_location, url=url))
+        logger.info(f"[iCIMS/{self.company_name}] {len(jobs)} jobs")
         return jobs
+
+
+class KinaxisScraper(ICIMSScraper):
+    def __init__(self, company):
+        super().__init__(
+            company,
+            "https://careers-kinaxis.icims.com/jobs/search?ss=1&searchKeyword=data+engineer&searchLocation=Canada",
+            "Ottawa",
+        )
 
 
 # ── GENERIC FALLBACK ────────────────────────────────────────────
@@ -1422,6 +1433,14 @@ def get_scraper(company: dict):
         "Clio":                       ClioScraper,
         "Coveo":                      CoveoScraper,
         "Kinaxis":                    KinaxisScraper,
+        # j2w (SAP SuccessFactors)
+        "City of Toronto":            J2WScraper,
+        # iCIMS
+        "Mackenzie Investments":      lambda c: ICIMSScraper(
+            c,
+            "https://careersen-mackenzieinvestments.icims.com/jobs/search?ss=1&searchKeyword=data+engineer&searchLocation=Canada",
+            "Toronto",
+        ),
     }
     if name in dedicated:
         return dedicated[name](company)
