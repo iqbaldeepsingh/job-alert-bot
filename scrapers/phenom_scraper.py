@@ -39,6 +39,10 @@ PHENOM_CONFIGS = {
         "search_url":       "https://mycareer.hsbc.com/en_GB/external/search-results?keywords=data+engineer",
         "job_url_template": "https://mycareer.hsbc.com/en_GB/external/job/{jobSeqNo}/{slug}",
     },
+    "Citibank Canada": {
+        "search_url":       "https://jobs.citi.com/search-results?keywords=data+engineer&location=Canada",
+        "job_url_template": "https://jobs.citi.com/job/{jobSeqNo}/{slug}",
+    },
 }
 
 
