@@ -1312,6 +1312,39 @@ class KinaxisScraper(ICIMSScraper):
         )
 
 
+# ── INFOSYS ──────────────────────────────────────────────────────
+_INFOSYS_URL = (
+    "https://digitalcareers.infosys.com/global-careers/search-jobs"
+    "?searchText=data+engineer&location=Canada"
+)
+
+class InfosysScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(_INFOSYS_URL)
+        time.sleep(8)
+        # Detect Akamai/bot block — page redirects to infosys.com/404
+        if "infosys.com/404" in driver.current_url or "Access Denied" in driver.page_source[:500]:
+            logger.warning("[Infosys] Bot protection detected — skipping")
+            return []
+        self.slow_scroll(driver)
+        time.sleep(3)
+        links = driver.find_elements(By.CSS_SELECTOR,
+            "a[href*='/company-job/'], a[href*='/reqid/'], .job-title a, .jobTitle a, h3 a, h2 a")
+        seen: set = set()
+        jobs = []
+        for link in links[:50]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Canada", url=url))
+        logger.info(f"[Infosys] {len(jobs)} jobs")
+        return jobs
+
+
 # ── GENERIC FALLBACK ────────────────────────────────────────────
 class GenericScraper(BaseScraper):
     """
@@ -1435,6 +1468,7 @@ def get_scraper(company: dict):
         "Kinaxis":                    KinaxisScraper,
         # j2w (SAP SuccessFactors)
         "City of Toronto":            J2WScraper,
+        "Infosys Canada":             InfosysScraper,
         # iCIMS
         "Mackenzie Investments":      lambda c: ICIMSScraper(
             c,
