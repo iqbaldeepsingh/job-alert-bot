@@ -604,6 +604,208 @@ class BankOfCanadaScraper(BaseScraper):
             return []
 
 
+# ── UBER CANADA ─────────────────────────────────────────────────
+_UBER_URL = "https://www.uber.com/global/en/careers/list/?query=data+engineer&location=Toronto"
+_UBER_JOB_SELS = [
+    "a[href*='/careers/list/']",
+    "[data-testid='job-title'] a",
+    "li[class*='job'] a",
+    ".job-title a",
+]
+
+class UberScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(_UBER_URL)
+        time.sleep(8)
+        self.slow_scroll(driver)
+        time.sleep(3)
+        links = []
+        for sel in _UBER_JOB_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(found) > 1:
+                links = found
+                logger.info(f"[Uber] {len(links)} links with: {sel}")
+                break
+        if not links:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/careers/']")
+        seen: set = set()
+        jobs = []
+        for link in links[:50]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Toronto", url=url))
+        logger.info(f"[Uber] {len(jobs)} jobs")
+        return jobs
+
+
+# ── INTUIT CANADA ────────────────────────────────────────────────
+_INTUIT_URL = "https://jobs.intuit.com/search-jobs?k=data+engineer&l=Canada"
+_INTUIT_SELS = [
+    ".job-listing-name a",
+    ".job-title-link",
+    "a.job-title",
+    "h3.job-title a",
+    "ul.jobs-list li a",
+    ".search-result-jobTitle a",
+    "a[href*='/job/'][href*='intuit']",
+]
+
+class IntuitScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(_INTUIT_URL)
+        time.sleep(8)
+        self.slow_scroll(driver)
+        time.sleep(3)
+        links = []
+        for sel in _INTUIT_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if found:
+                links = found
+                logger.info(f"[Intuit] {len(links)} links with: {sel}")
+                break
+        if not links:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/job/']")
+        seen: set = set()
+        jobs = []
+        for link in links[:50]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Canada", url=url))
+        logger.info(f"[Intuit] {len(jobs)} jobs")
+        return jobs
+
+
+# ── CLIO ─────────────────────────────────────────────────────────
+_CLIO_URL = "https://jobs.ashbyhq.com/clio"
+_CLIO_SELS = [
+    "a[href*='/clio/']",
+    "[class*='ashby-job'] a",
+    "[class*='posting'] a",
+    "div[class*='job'] a",
+    "li a[href*='ashbyhq']",
+]
+
+class ClioScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(_CLIO_URL)
+        time.sleep(6)
+        self.slow_scroll(driver)
+        time.sleep(2)
+        links = []
+        for sel in _CLIO_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(found) > 1:
+                links = found
+                logger.info(f"[Clio] {len(links)} links with: {sel}")
+                break
+        if not links:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='ashbyhq']")
+        seen: set = set()
+        jobs = []
+        for link in links[:50]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Canada", url=url))
+        logger.info(f"[Clio] {len(jobs)} jobs")
+        return jobs
+
+
+# ── COVEO ─────────────────────────────────────────────────────────
+_COVEO_URL = "https://www.coveo.com/en/company/careers/open-positions"
+_COVEO_SELS = [
+    "li.opening a",
+    ".opening a",
+    "a[href*='/careers/']",
+    "[class*='job'] a",
+    "li a",
+]
+
+class CoveoScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(_COVEO_URL)
+        time.sleep(8)
+        self.slow_scroll(driver)
+        time.sleep(3)
+        links = []
+        for sel in _COVEO_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(found) > 1:
+                links = found
+                logger.info(f"[Coveo] {len(links)} links with: {sel}")
+                break
+        seen: set = set()
+        jobs = []
+        for link in links[:80]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Quebec City", url=url))
+        logger.info(f"[Coveo] {len(jobs)} jobs")
+        return jobs
+
+
+# ── KINAXIS ───────────────────────────────────────────────────────
+_KINAXIS_URL = (
+    "https://careers-kinaxis.icims.com/jobs/search"
+    "?ss=1&searchKeyword=data+engineer&searchLocation=Canada"
+)
+_KINAXIS_SELS = [
+    ".iCIMS_JobListingRow .iCIMS_Anchor",
+    ".iCIMS_Anchor",
+    "a.iCIMS_Anchor",
+    ".iCIMS_JobTitleText a",
+    "table.iCIMS_JobsTable a",
+]
+
+class KinaxisScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(_KINAXIS_URL)
+        time.sleep(6)
+        self.slow_scroll(driver)
+        time.sleep(2)
+        links = []
+        for sel in _KINAXIS_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if found:
+                links = found
+                logger.info(f"[Kinaxis] {len(links)} links with: {sel}")
+                break
+        if not links:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='icims.com/jobs/']")
+        seen: set = set()
+        jobs = []
+        for link in links[:50]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Ottawa", url=url))
+        logger.info(f"[Kinaxis] {len(jobs)} jobs")
+        return jobs
+
+
 # ── GENERIC FALLBACK ────────────────────────────────────────────
 class GenericScraper(BaseScraper):
     """
@@ -698,6 +900,12 @@ def get_scraper(company: dict):
         "Scotiabank Digital Factory": J2WScraper,
         # j2w RSS scraper
         "Bank of Canada":             BankOfCanadaScraper,
+        # Custom Selenium scrapers
+        "Uber Canada":                UberScraper,
+        "Intuit Canada":              IntuitScraper,
+        "Clio":                       ClioScraper,
+        "Coveo":                      CoveoScraper,
+        "Kinaxis":                    KinaxisScraper,
     }
     if name in dedicated:
         return dedicated[name](company)
