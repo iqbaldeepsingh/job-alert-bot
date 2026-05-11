@@ -763,6 +763,49 @@ class CoveoScraper(BaseScraper):
         return jobs
 
 
+# ── ATLASSIAN CANADA ─────────────────────────────────────────────
+_ATLASSIAN_URL = (
+    "https://www.atlassian.com/company/careers/all-jobs"
+    "?team=Engineering&location=Canada"
+)
+_ATLASSIAN_SELS = [
+    "a[href*='/careers/details/']",
+    "[class*='job-listing'] a",
+    "[class*='job-card'] a",
+    "[class*='JobResult'] a",
+    "li[class*='job'] a",
+]
+
+class AtlassianScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(_ATLASSIAN_URL)
+        time.sleep(8)
+        self.slow_scroll(driver)
+        time.sleep(3)
+        links = []
+        for sel in _ATLASSIAN_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(found) > 1:
+                links = found
+                logger.info(f"[Atlassian] {len(links)} links with: {sel}")
+                break
+        if not links:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/careers/']")
+        seen: set = set()
+        jobs = []
+        for link in links[:60]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Canada", url=url))
+        logger.info(f"[Atlassian] {len(jobs)} jobs")
+        return jobs
+
+
 # ── KINAXIS ───────────────────────────────────────────────────────
 _KINAXIS_URL = (
     "https://careers-kinaxis.icims.com/jobs/search"
@@ -901,6 +944,7 @@ def get_scraper(company: dict):
         # j2w RSS scraper
         "Bank of Canada":             BankOfCanadaScraper,
         # Custom Selenium scrapers
+        "Atlassian Canada":            AtlassianScraper,
         "Uber Canada":                UberScraper,
         "Intuit Canada":              IntuitScraper,
         "Clio":                       ClioScraper,
