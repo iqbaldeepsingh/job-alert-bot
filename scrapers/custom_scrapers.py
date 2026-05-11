@@ -806,6 +806,321 @@ class AtlassianScraper(BaseScraper):
         return jobs
 
 
+# ── DAYFORCE HCM ─────────────────────────────────────────────────
+# Used by: Questrade (qfg), LifeLabs (lifelabs)
+_DAYFORCE_SELS = [
+    ".job-list-item a",
+    "[class*='job-title'] a",
+    "[class*='JobTitle'] a",
+    "h2 a, h3 a",
+    "a[href*='/jobs/']",
+]
+
+class DayforceHCMScraper(BaseScraper):
+    def __init__(self, company, slug):
+        super().__init__(company)
+        self._url = f"https://jobs.dayforcehcm.com/en-US/{slug}/CANDIDATEPORTAL/jobs"
+
+    def scrape(self, driver) -> list:
+        driver.get(self._url)
+        time.sleep(8)
+        self.slow_scroll(driver)
+        time.sleep(3)
+        links = []
+        for sel in _DAYFORCE_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(found) > 1:
+                links = found
+                logger.info(f"[Dayforce/{self.company_name}] {len(links)} links: {sel}")
+                break
+        if not links:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/jobs/']")
+        seen: set = set()
+        jobs = []
+        for link in links[:50]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Canada", url=url))
+        logger.info(f"[Dayforce/{self.company_name}] {len(jobs)} jobs")
+        return jobs
+
+
+# ── iA FINANCIAL ─────────────────────────────────────────────────
+_IA_URL = "https://ia.ca/en/carrieres"
+_IA_SELS = [
+    "a[href*='/carrieres/job/']",
+    "a[href*='/careers/job/']",
+    "[class*='job'] a",
+    "[class*='posting'] a",
+]
+
+class IAFinancialScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(_IA_URL)
+        time.sleep(8)
+        self.slow_scroll(driver)
+        time.sleep(3)
+        links = []
+        for sel in _IA_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(found) > 1:
+                links = found
+                break
+        if not links:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/job/']")
+        seen: set = set()
+        jobs = []
+        for link in links[:60]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Canada", url=url))
+        logger.info(f"[iA Financial] {len(jobs)} jobs")
+        return jobs
+
+
+# ── PAYPAL CANADA ─────────────────────────────────────────────────
+_PAYPAL_URL = "https://paypal.eightfold.ai/careers?query=data+engineer&location=Canada"
+_PAYPAL_SELS = [
+    "[data-ph-id] a",
+    "[class*='job-card'] a",
+    "[class*='position'] a",
+    "a[href*='/careers/job/']",
+    "li[class*='job'] a",
+]
+
+class PayPalScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(_PAYPAL_URL)
+        time.sleep(8)
+        self.slow_scroll(driver)
+        time.sleep(3)
+        links = []
+        for sel in _PAYPAL_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(found) > 1:
+                links = found
+                break
+        if not links:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='eightfold.ai']")
+        seen: set = set()
+        jobs = []
+        for link in links[:50]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Canada", url=url))
+        logger.info(f"[PayPal] {len(jobs)} jobs")
+        return jobs
+
+
+# ── ORACLE CANADA ─────────────────────────────────────────────────
+_ORACLE_URL = "https://careers.oracle.com/en/sites/jobsearch/requisitions?keyword=data+engineer&location=Canada&locationId=300000000149325&locationLevel=country"
+_ORACLE_SELS = [
+    "[class*='job-title'] a",
+    "li[class*='job'] a",
+    "a[href*='/job/']",
+    "[class*='requisition'] a",
+]
+
+class OracleScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(_ORACLE_URL)
+        time.sleep(8)
+        self.slow_scroll(driver)
+        time.sleep(3)
+        links = []
+        for sel in _ORACLE_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(found) > 1:
+                links = found
+                break
+        if not links:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='careers.oracle.com']")
+        seen: set = set()
+        jobs = []
+        for link in links[:50]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Canada", url=url))
+        logger.info(f"[Oracle] {len(jobs)} jobs")
+        return jobs
+
+
+# ── WELL HEALTH ───────────────────────────────────────────────────
+_WELL_URL = (
+    "https://workforcenow.adp.com/mascsr/default/mdf/recruitment/recruitment.html"
+    "?cid=812e2e6b-3e13-494b-9abe-72b6ef39cd69&ccId=19000101_000001&lang=en_CA"
+)
+_WELL_SELS = [
+    ".job-posting a",
+    "[class*='jobTitle'] a",
+    "[class*='job-title'] a",
+    "a[class*='jobtitle']",
+    ".jobDetails a",
+    "a[href*='jobId']",
+]
+
+class WELLHealthScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(_WELL_URL)
+        time.sleep(10)
+        self.slow_scroll(driver)
+        time.sleep(3)
+        links = []
+        for sel in _WELL_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(found) > 1:
+                links = found
+                break
+        if not links:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='jobId'], a[href*='recruitment']")
+        seen: set = set()
+        jobs = []
+        for link in links[:50]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Vancouver", url=url))
+        logger.info(f"[WELL Health] {len(jobs)} jobs")
+        return jobs
+
+
+# ── STANTEC ───────────────────────────────────────────────────────
+_STANTEC_URL = "https://stantec.jobs/search/?q=data+engineer&locationsearch=Canada"
+_STANTEC_SELS = [
+    ".job-title a",
+    "a[href*='/job/']",
+    "[class*='job-listing'] a",
+    "h2 a",
+]
+
+class StantecScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(_STANTEC_URL)
+        time.sleep(6)
+        self.slow_scroll(driver)
+        time.sleep(2)
+        links = []
+        for sel in _STANTEC_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(found) > 1:
+                links = found
+                break
+        if not links:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='stantec.jobs']")
+        seen: set = set()
+        jobs = []
+        for link in links[:50]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Canada", url=url))
+        logger.info(f"[Stantec] {len(jobs)} jobs")
+        return jobs
+
+
+# ── PFIZER CANADA ─────────────────────────────────────────────────
+_PFIZER_URL = "https://www.pfizer.ca/en/careers?field_job_categories_tid=All&field_job_locations_tid=Canada&search_api_fulltext=data+engineer"
+_PFIZER_SELS = [
+    "a[href*='/careers/job']",
+    ".job-title a",
+    "[class*='job'] a",
+    "h3 a",
+    "h2 a",
+]
+
+class PfizerScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(_PFIZER_URL)
+        time.sleep(6)
+        self.slow_scroll(driver)
+        time.sleep(2)
+        links = []
+        for sel in _PFIZER_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(found) > 1:
+                links = found
+                break
+        if not links:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='pfizer']")
+        seen: set = set()
+        jobs = []
+        for link in links[:50]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Canada", url=url))
+        logger.info(f"[Pfizer] {len(jobs)} jobs")
+        return jobs
+
+
+# ── KLICK HEALTH ──────────────────────────────────────────────────
+_KLICK_URL = "https://careers.klick.com/"
+_KLICK_SELS = [
+    "a[href*='/roles/']",
+    "[class*='job'] a",
+    "[class*='role'] a",
+    "[class*='posting'] a",
+]
+
+class KlickScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(_KLICK_URL)
+        time.sleep(6)
+        self.slow_scroll(driver)
+        time.sleep(2)
+        links = []
+        for sel in _KLICK_SELS:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            if len(found) > 1:
+                links = found
+                break
+        seen: set = set()
+        jobs = []
+        for link in links[:60]:
+            title = self.safe_text(link)
+            url = self.safe_attr(link, "href")
+            if not title or not url or url in seen:
+                continue
+            seen.add(url)
+            if not self.is_data_role(title):
+                continue
+            jobs.append(self.build_job(title=title, location="Toronto", url=url))
+        logger.info(f"[Klick] {len(jobs)} jobs")
+        return jobs
+
+
 # ── COGNIZANT CANADA ─────────────────────────────────────────────
 _COGNIZANT_URL = "https://careers.cognizant.com/ca-en/search-results?keywords=data+engineer"
 _COGNIZANT_SELS = [
@@ -1027,6 +1342,19 @@ def get_scraper(company: dict):
         "Bank of Canada":             BankOfCanadaScraper,
         # Custom Selenium scrapers
         "Atlassian Canada":            AtlassianScraper,
+        # Dayforce HCM companies
+        "Questrade":                   lambda c: DayforceHCMScraper(c, "qfg"),
+        "LifeLabs":                    lambda c: DayforceHCMScraper(c, "lifelabs"),
+        # Custom Selenium
+        "iA Financial Group":          IAFinancialScraper,
+        "PayPal Canada":               PayPalScraper,
+        "Oracle Canada":               OracleScraper,
+        "WELL Health Technologies":    WELLHealthScraper,
+        "Stantec":                     StantecScraper,
+        "Pfizer Canada":               PfizerScraper,
+        "Klick Health":                KlickScraper,
+        # j2w
+        "HCL Technologies Canada":     J2WScraper,
         "Cognizant Canada":            CognizantScraper,
         "TCS Canada":                  TCSScraper,
         # j2w (SAP SuccessFactors) — Wipro and Capgemini use same platform
