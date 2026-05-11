@@ -15,42 +15,17 @@ from config.settings import EMAIL_CONFIG, COMPANIES
 logger = logging.getLogger(__name__)
 
 
-def build_level_badge(level: str) -> str:
-    styles = {
-        "Senior":       "background:#FAEEDA;color:#633806;",
-        "Staff / Lead": "background:#EEEDFE;color:#3C3489;",
-        "Mid-Level":    "background:#E6F1FB;color:#0C447C;",
-        "Entry Level":  "background:#EAF3DE;color:#27500A;",
-        "Principal":    "background:#F5E6FF;color:#7A1A9A;",
-    }
-    style = styles.get(level, "background:#F1EFE8;color:#444;")
-    return (f'<span style="{style}padding:2px 8px;border-radius:12px;'
-            f'font-size:11px;font-weight:600;">{level}</span>')
-
-
 def build_job_row(job: dict) -> str:
     skills = ", ".join(job.get("skills", [])[:4])
-    salary = f' 💰 {job["salary"]}' if job.get("salary") else ""
+    salary = f' · 💰 {job["salary"]}' if job.get("salary") else ""
     url    = job.get("url", "")
-    apply  = f'<a href="{url}" style="color:#fff;background:#185FA5;padding:2px 10px;border-radius:5px;font-size:11px;text-decoration:none;margin-left:8px;">Apply →</a>' if url else ""
-    level_colors = {
-        "Staff / Lead": "#3C3489", "Senior": "#633806",
-        "Mid-Level": "#0C447C",   "Entry Level": "#27500A",
-    }
-    lc = level_colors.get(job.get("level", ""), "#444")
-    level = f'<span style="color:{lc};font-size:11px;font-weight:600;">{job.get("level","")}</span>'
-
-    return f"""
-    <tr>
-      <td style="padding:7px 0;border-bottom:1px solid #f0f0f0;">
-        <span style="font-size:13px;font-weight:600;color:#0C447C;">{job["title"]}</span>
-        &nbsp;{level}&nbsp;{salary}{apply}<br>
-        <span style="font-size:11px;color:#666;">
-          {job['company']} · {job.get('location','Canada')} · {job.get('posted','Recent')}
-          {(' · ' + skills) if skills else ''}
-        </span>
-      </td>
-    </tr>"""
+    apply  = f' <a href="{url}">[Apply]</a>' if url else ""
+    level  = job.get("level", "")
+    return (f'<tr><td style="padding:5px 0;border-bottom:1px solid #eee;">'
+            f'<b>{job["title"]}</b> <i>[{level}]</i>{salary}{apply}<br>'
+            f'<small>{job["company"]} · {job.get("location","Canada")} · {job.get("posted","Recent")}'
+            f'{(" · " + skills) if skills else ""}</small>'
+            f'</td></tr>')
 
 
 def build_email_html(jobs: list, run_time: str) -> str:
