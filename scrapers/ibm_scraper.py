@@ -148,7 +148,7 @@ class IBMScraper(BaseScraper):
                     except NoSuchElementException:
                         pass
 
-                if not title or len(title) < 4:
+                if not title or len(title) < 4 or not self.is_data_role(title):
                     continue
 
                 for lsel in _LOCATION_SELECTORS:
@@ -162,6 +162,8 @@ class IBMScraper(BaseScraper):
 
                 if not location:
                     location = "Canada"
+                if not self.is_canada_job(location):
+                    continue
 
                 jobs.append(self.build_job(title=title, location=location, url=url))
             except Exception as e:
@@ -178,7 +180,7 @@ class IBMScraper(BaseScraper):
         for link in links[:30]:
             title = self.safe_text(link)
             url = self.safe_attr(link, "href")
-            if title and len(title) > 5:
+            if title and len(title) > 5 and self.is_data_role(title):
                 jobs.append(self.build_job(title=title, location="Canada", url=url))
         logger.info(f"[IBM] Link extraction: {len(jobs)} jobs")
         return jobs
