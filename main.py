@@ -8,6 +8,7 @@ Evening:       python main.py --run evening
 Test email:    python main.py --test-email
 Clear cache:   python main.py --clear-cache
 No headless:   python main.py --no-headless
+Broad test:    python main.py --broad   (all roles: SE, QA, DevOps; skip dedup)
 """
 
 import os
@@ -20,7 +21,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from config.settings import COMPANIES
 from scrapers.custom_scrapers import get_scraper, GenericScraper
-from scrapers.base_scraper import build_driver
+from scrapers.base_scraper import BaseScraper, build_driver
 from scrapers.custom_scrapers import get_scraper
 from utils.email_builder import send_email
 from utils.deduplicator import filter_new_jobs, clear_cache
@@ -99,18 +100,27 @@ def scrape_all(headless: bool = True) -> list:
 
 
 # ── Main run ────────────────────────────────────────────────────
-def run(run_label: str = "Daily", headless: bool = True):
+def run(run_label: str = "Daily", headless: bool = True, broad: bool = False):
     start = time.time()
     logger.info(f"{'='*55}")
-    logger.info(f"Job Alert Bot — {run_label}")
+    logger.info(f"Job Alert Bot — {run_label}{'  [BROAD TEST]' if broad else ''}")
     logger.info(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info(f"{'='*55}")
+
+    if broad:
+        # Patch is_data_role to accept any title — lets us verify all scrapers work
+        BaseScraper.is_data_role = lambda self, title: True
+        logger.info("BROAD MODE: is_data_role patched to True for all titles")
 
     # Step 1 — Scrape
     all_jobs = scrape_all(headless=headless)
 
-    # Step 2 — Deduplicate
-    new_jobs = filter_new_jobs(all_jobs)
+    # Step 2 — Deduplicate (skipped in broad mode — we want to see everything)
+    if broad:
+        new_jobs = all_jobs
+        logger.info(f"BROAD MODE: skipping deduplication — {len(new_jobs)} jobs total")
+    else:
+        new_jobs = filter_new_jobs(all_jobs)
 
     if not new_jobs:
         logger.info("No new jobs found — sending status email")
@@ -154,6 +164,9 @@ if __name__ == "__main__":
     parser.add_argument("--test-email",
         action="store_true",
         help="Send test email with dummy jobs")
+    parser.add_argument("--broad",
+        action="store_true",
+        help="Broad test: accept all job titles, skip deduplication")
     args = parser.parse_args()
 
     if args.clear_cache:
@@ -209,4 +222,4 @@ if __name__ == "__main__":
         "evening": "Evening (6 PM)",
         "daily":   "Daily",
     }
-    run(run_label=labels[args.run], headless=not args.no_headless)
+    run(run_label=labels[args.run], headless=not args.no_headless, broad=args.broad)
