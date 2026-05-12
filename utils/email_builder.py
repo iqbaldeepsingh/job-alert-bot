@@ -75,11 +75,12 @@ def build_job_row(job: dict) -> str:
             f'📍 {job.get("location","Canada")} &nbsp;·&nbsp; '
             f'🏢 Full-time'
             f'{(" &nbsp;·&nbsp; 📅 " + posted) if posted else ""}')
+    sal_span  = f'<span class="sal">💰 {salary}</span>' if salary else ""
+    skill_div = f"<div>{skill_pills}</div>" if skill_pills else ""
     return (f'<div class="jr">'
-            f'<b class="jt">{job["title"]}</b>{_badge(level)}'
-            f'{"<span class=\\"sal\\">💰 " + salary + "</span>" if salary else ""}<br>'
+            f'<b class="jt">{job["title"]}</b>{_badge(level)}{sal_span}<br>'
             f'<div class="jm">{meta}</div>'
-            f'{"<div>" + skill_pills + "</div>" if skill_pills else ""}'
+            f'{skill_div}'
             f'{apply}'
             f'</div>')
 
@@ -140,6 +141,57 @@ def build_email_html(jobs: list, run_time: str) -> str:
   <div class="jobs">{sections}</div>
   <div class="ftr">🤖 Job Alert Bot &nbsp;·&nbsp; Selenium + GitHub Actions &nbsp;·&nbsp; 9:00 AM &amp; 6:00 PM daily &nbsp;·&nbsp; {len(COMPANIES)} companies</div>
 </div>"""
+
+
+def send_broad_summary_email(company_counts: list, run_label: str = "Broad Test") -> bool:
+    """Send a plain summary table: company name + job count for each company."""
+    cfg = EMAIL_CONFIG
+    now = datetime.now().strftime("%A, %B %d %Y — %I:%M %p")
+    total_companies = len(company_counts)
+    working = sum(1 for _, n in company_counts if n > 0)
+    total_jobs = sum(n for _, n in company_counts)
+    subject = f"🔍 Broad Test Report: {working}/{total_companies} companies returning jobs — {datetime.now().strftime('%b %d, %Y')}"
+
+    rows = ""
+    for company, count in sorted(company_counts, key=lambda x: -x[1]):
+        color = "#27500A" if count > 0 else "#999"
+        icon  = "✅" if count > 0 else "❌"
+        rows += f'<tr><td style="padding:4px 10px;border-bottom:1px solid #eee;">{icon} {company}</td><td style="padding:4px 10px;border-bottom:1px solid #eee;text-align:right;color:{color};font-weight:600;">{count}</td></tr>'
+
+    html = f"""<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+  <div style="background:linear-gradient(135deg,#0C447C,#185FA5);border-radius:12px;padding:22px 26px;margin-bottom:18px;">
+    <h1 style="color:#fff;font-size:20px;margin:0 0 5px;">🔍 Broad Test Report</h1>
+    <p style="color:#B5D4F4;font-size:12px;margin:0;">{now} &nbsp;·&nbsp; {working}/{total_companies} companies working &nbsp;·&nbsp; {total_jobs} total jobs found</p>
+  </div>
+  <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #eee;border-radius:8px;">
+    <tr style="background:#f5f5f5;">
+      <th style="padding:8px 10px;text-align:left;font-size:12px;color:#555;">Company</th>
+      <th style="padding:8px 10px;text-align:right;font-size:12px;color:#555;">Jobs Found</th>
+    </tr>
+    {rows}
+  </table>
+  <p style="color:#bbb;font-size:11px;text-align:center;margin-top:14px;">🤖 Job Alert Bot — Broad Test Run</p>
+</div>"""
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = cfg["sender_email"]
+    msg["To"]      = cfg["recipient_email"]
+    msg.attach(MIMEText(html, "html"))
+
+    try:
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL(cfg["smtp_host"], cfg["smtp_port"], timeout=30, context=ctx) as server:
+            server.login(cfg["sender_email"], cfg["sender_password"])
+            server.sendmail(cfg["sender_email"], cfg["recipient_email"], msg.as_string())
+        logger.info(f"✅ Broad summary email sent: {subject}")
+        return True
+    except smtplib.SMTPAuthenticationError:
+        logger.error("❌ Gmail auth failed — check App Password in .env file")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Email failed: {e}")
+        return False
 
 
 def send_email(jobs: list, run_label: str = "Daily") -> bool:

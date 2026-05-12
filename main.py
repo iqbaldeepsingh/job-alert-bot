@@ -23,7 +23,7 @@ from config.settings import COMPANIES
 from scrapers.custom_scrapers import get_scraper, GenericScraper
 from scrapers.base_scraper import BaseScraper, build_driver
 from scrapers.custom_scrapers import get_scraper
-from utils.email_builder import send_email
+from utils.email_builder import send_email, send_broad_summary_email
 from utils.deduplicator import filter_new_jobs, clear_cache
 
 # ── Logging setup ───────────────────────────────────────────────
@@ -55,16 +55,15 @@ def scrape_company(company: dict, headless: bool = True) -> list:
 
 
 # ── Scrape all companies ────────────────────────────────────────
-def scrape_all(headless: bool = True) -> list:
-    all_jobs = []
-    total    = len(COMPANIES)
-    done     = 0
+def scrape_all(headless: bool = True, track_counts: bool = False):
+    all_jobs     = []
+    company_counts = []   # [(name, count), ...] populated when track_counts=True
+    total        = len(COMPANIES)
+    done         = 0
 
-    # API-based — no Chrome needed (requests only)
     API_TYPES = {"greenhouse", "lever", "workday", "phenom", "ashby",
                  "smartrecruiters", "oracle_hcm", "avature"}
     api_cos = [c for c in COMPANIES if c.get("scraper") in API_TYPES]
-    # Selenium phase — custom scrapers that need Chrome + skip GenericScraper
     sel_cos = [c for c in COMPANIES
                if c.get("scraper") not in API_TYPES
                and not isinstance(get_scraper(c), GenericScraper)]
@@ -75,27 +74,27 @@ def scrape_all(headless: bool = True) -> list:
     logger.info(f"Selenium scrapers: {len(sel_cos)} (need Chrome)")
     logger.info(f"{'='*55}")
 
-    # Phase 1 — API scrapers (10 parallel)
-    logger.info("Phase 1: API scrapers starting...")
-    with ThreadPoolExecutor(max_workers=10) as pool:
-        futures = {pool.submit(scrape_company, c, headless): c for c in api_cos}
-        for future in as_completed(futures):
-            jobs  = future.result()
-            all_jobs.extend(jobs)
-            done += 1
-            logger.info(f"Progress: {done}/{total} | Jobs so far: {len(all_jobs)}")
+    def _run(cos, headless):
+        nonlocal done
+        with ThreadPoolExecutor(max_workers=10 if cos is api_cos else 5) as pool:
+            futures = {pool.submit(scrape_company, c, headless): c for c in cos}
+            for future in as_completed(futures):
+                c    = futures[future]
+                jobs = future.result()
+                all_jobs.extend(jobs)
+                if track_counts:
+                    company_counts.append((c["name"], len(jobs)))
+                done += 1
+                logger.info(f"Progress: {done}/{total} | {c['name']}: {len(jobs)} jobs | Total: {len(all_jobs)}")
 
-    # Phase 2 — Selenium scrapers (5 parallel)
+    logger.info("Phase 1: API scrapers starting...")
+    _run(api_cos, headless)
     logger.info("Phase 2: Selenium scrapers starting...")
-    with ThreadPoolExecutor(max_workers=5) as pool:
-        futures = {pool.submit(scrape_company, c, headless): c for c in sel_cos}
-        for future in as_completed(futures):
-            jobs  = future.result()
-            all_jobs.extend(jobs)
-            done += 1
-            logger.info(f"Progress: {done}/{total} | Jobs so far: {len(all_jobs)}")
+    _run(sel_cos, headless)
 
     logger.info(f"Scraping complete — {len(all_jobs)} total jobs")
+    if track_counts:
+        return all_jobs, company_counts
     return all_jobs
 
 
@@ -108,19 +107,25 @@ def run(run_label: str = "Daily", headless: bool = True, broad: bool = False):
     logger.info(f"{'='*55}")
 
     if broad:
-        # Patch is_data_role to accept any title — lets us verify all scrapers work
         BaseScraper.is_data_role = lambda self, title: True
         logger.info("BROAD MODE: is_data_role patched to True for all titles")
 
     # Step 1 — Scrape
-    all_jobs = scrape_all(headless=headless)
-
-    # Step 2 — Deduplicate (skipped in broad mode — we want to see everything)
     if broad:
-        new_jobs = all_jobs
-        logger.info(f"BROAD MODE: skipping deduplication — {len(new_jobs)} jobs total")
+        all_jobs, company_counts = scrape_all(headless=headless, track_counts=True)
     else:
-        new_jobs = filter_new_jobs(all_jobs)
+        all_jobs = scrape_all(headless=headless)
+
+    # Step 2 — Broad mode: send summary email and exit
+    if broad:
+        logger.info(f"BROAD MODE: sending summary email ({len(company_counts)} companies)")
+        success = send_broad_summary_email(company_counts, run_label=run_label)
+        elapsed = time.time() - start
+        logger.info(f"Done in {elapsed:.0f}s | success={success}")
+        return
+
+    # Step 2 — Deduplicate
+    new_jobs = filter_new_jobs(all_jobs)
 
     if not new_jobs:
         logger.info("No new jobs found — sending status email")
