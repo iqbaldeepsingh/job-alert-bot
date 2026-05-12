@@ -142,9 +142,18 @@ def run(run_label: str = "Daily", headless: bool = True, broad: bool = False):
     }
     new_jobs.sort(key=lambda j: level_order.get(j.get("level", "Mid-Level"), 3))
 
-    # Step 4 — Send email
+    # Step 4 — Send email (chunk if large batch)
+    CHUNK_SIZE = 50
     logger.info(f"Sending email with {len(new_jobs)} new jobs...")
-    success = send_email(new_jobs, run_label=run_label)
+    if len(new_jobs) <= CHUNK_SIZE:
+        success = send_email(new_jobs, run_label=run_label)
+    else:
+        chunks = [new_jobs[i:i + CHUNK_SIZE] for i in range(0, len(new_jobs), CHUNK_SIZE)]
+        logger.info(f"Large batch — splitting into {len(chunks)} emails of up to {CHUNK_SIZE} jobs")
+        success = all(
+            send_email(chunk, run_label=f"{run_label} ({idx+1}/{len(chunks)})")
+            for idx, chunk in enumerate(chunks)
+        )
 
     elapsed = time.time() - start
     logger.info(f"{'='*55}")

@@ -5,6 +5,8 @@ Uber, LinkedIn, Spotify, Deloitte, CGI, TD Bank,
 Scotiabank, Rogers, Telus, Bell, + Generic fallback
 """
 
+import re
+import json
 import time
 import logging
 import requests
@@ -244,115 +246,102 @@ class MicrosoftScraper(BaseScraper):
 
 
 # ── META ────────────────────────────────────────────────────────
-_META_CARD_SELS  = [
-    "[data-testid='job-card']",
-    "div[data-testid='job-listing-card']",
-    "div[class*='job']",
-    ".jobs-list-item",
-    "li[class*='job']",
+_META_OFFICES = [
+    "Toronto, ON", "Ottawa, Canada", "Montreal, Canada",
+    "Remote, Canada", "Vancouver, Canada",
 ]
-_META_TITLE_SELS = [
-    "[data-testid='job-title']",
-    "h3", "h2", "[class*='title']", "a span", "span",
-]
-_META_LOC_SELS   = [
-    "[data-testid='job-listing-location']",
-    "[class*='location']", ".location",
-]
+_META_GQL_URL = "https://www.metacareers.com/graphql"
+_META_DOC_ID  = "29615178951461218"  # CareersJobSearchResultsDataQuery
 
 
 class MetaScraper(BaseScraper):
     def scrape(self, driver) -> list:
-        driver.get(self.careers_url)
-        time.sleep(6)
-        try:
-            WebDriverWait(driver, 25).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR,
-                     "[data-testid='job-card'], a[href*='/profile/job_details/'], div[class*='job']")
-                )
-            )
-        except TimeoutException:
-            pass
-        self.slow_scroll(driver)
-        time.sleep(2)
+        page_url = (
+            "https://www.metacareers.com/jobsearch?"
+            "offices[0]=Toronto%2C%20ON&offices[1]=Ottawa%2C%20Canada"
+            "&offices[2]=Montreal%2C%20Canada&offices[3]=Remote%2C%20Canada"
+            "&offices[4]=Vancouver%2C%20Canada"
+        )
+        driver.get(page_url)
+        time.sleep(8)
 
-        cards = []
-        for sel in _META_CARD_SELS:
-            found = driver.find_elements(By.CSS_SELECTOR, sel)
-            if len(found) > 1:
-                cards = found
-                logger.info(f"[Meta] {len(cards)} cards with: {sel}")
-                break
+        # Extract session LSD token from page source
+        lsd = ""
+        m = re.search(r'"LSD",\[\],\{"token":"([^"]+)"\}', driver.page_source)
+        if m:
+            lsd = m.group(1)
 
-        jobs = []
-        if not cards:
-            # fallback: extract directly from job detail links
-            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/profile/job_details/']")
-            seen: set = set()
-            for link in links[:50]:
-                try:
-                    url = self.safe_attr(link, "href")
-                    if not url or url in seen:
-                        continue
-                    seen.add(url)
-                    title = self.safe_text(link)
-                    if not title:
-                        try:
-                            parent = link.find_element(By.XPATH, "..")
-                            title = self.safe_text(parent)
-                        except Exception:
-                            pass
-                    if not title or not self.is_data_role(title):
-                        continue
-                    location = ""
-                    try:
-                        parent = link.find_element(By.XPATH, "..")
-                        location = self.safe_text(parent.find_element(
-                            By.CSS_SELECTOR, "[class*='location'], span"))
-                    except Exception:
-                        pass
-                    jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
-                except Exception:
-                    continue
-            logger.info(f"[Meta] {len(jobs)} Canada data jobs (link fallback)")
-            return jobs
-
-        seen = set()
-        for card in cards[:25]:
+        if lsd:
+            cookies = {c["name"]: c["value"] for c in driver.get_cookies()}
+            variables = {
+                "search_input": {
+                    "q": None, "divisions": [], "offices": _META_OFFICES,
+                    "roles": [], "leadership_levels": [], "saved_jobs": [],
+                    "saved_searches": [], "sub_teams": [], "teams": [],
+                    "is_leadership": False, "is_remote_only": False,
+                    "sort_by_new": False, "results_per_page": None,
+                }
+            }
+            payload = {
+                "__a": "1", "__comet_req": "31",
+                "lsd": lsd,
+                "fb_api_caller_class": "RelayModern",
+                "fb_api_req_friendly_name": "CareersJobSearchResultsDataQuery",
+                "variables": json.dumps(variables),
+                "server_timestamps": "true",
+                "doc_id": _META_DOC_ID,
+            }
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Origin": "https://www.metacareers.com",
+                "Referer": page_url,
+                "x-fb-lsd": lsd,
+                "x-asbd-id": "359341",
+                "x-fb-friendly-name": "CareersJobSearchResultsDataQuery",
+            }
             try:
-                title, url, location = "", "", ""
-                for tsel in _META_TITLE_SELS:
-                    try:
-                        el = card.find_element(By.CSS_SELECTOR, tsel)
-                        title = self.safe_text(el)
-                        if title:
-                            break
-                    except NoSuchElementException:
-                        continue
-                if not title:
-                    title = self.safe_text(card)
-                if not title or not self.is_data_role(title):
-                    continue
-                try:
-                    url = self.safe_attr(card.find_element(By.CSS_SELECTOR, "a"), "href")
-                except NoSuchElementException:
-                    pass
-                if url in seen:
+                r = requests.post(_META_GQL_URL, data=payload, headers=headers,
+                                  cookies=cookies, timeout=15)
+                if r.status_code == 200:
+                    all_jobs = (r.json().get("data", {})
+                                .get("job_search_with_featured_jobs", {})
+                                .get("all_jobs", []))
+                    jobs = []
+                    for job in all_jobs:
+                        title = job.get("title", "")
+                        if not self.is_data_role(title):
+                            continue
+                        locations = job.get("locations", [])
+                        location = next(
+                            (l for l in locations if self.is_canada_job(l)), "Canada"
+                        )
+                        job_url = f"https://www.metacareers.com/jobs/{job.get('id', '')}/"
+                        jobs.append(self.build_job(title=title, location=location, url=job_url))
+                    logger.info(f"[Meta] GraphQL: {len(jobs)} Canada data jobs")
+                    return jobs
+                logger.warning(f"[Meta] GraphQL {r.status_code}")
+            except Exception as e:
+                logger.debug(f"[Meta] GraphQL error: {e}")
+
+        # Fallback: extract from rendered DOM links
+        links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/profile/job_details/']")
+        seen: set = set()
+        jobs = []
+        for link in links[:60]:
+            try:
+                url = self.safe_attr(link, "href")
+                if not url or url in seen:
                     continue
                 seen.add(url)
-                for lsel in _META_LOC_SELS:
-                    try:
-                        location = self.safe_text(card.find_element(By.CSS_SELECTOR, lsel))
-                        if location:
-                            break
-                    except NoSuchElementException:
-                        continue
-                jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
+                title = self.safe_text(link) or self.safe_text(
+                    link.find_element(By.XPATH, ".."))
+                if not title or not self.is_data_role(title):
+                    continue
+                jobs.append(self.build_job(title=title, location="Canada", url=url))
             except Exception:
                 continue
-
-        logger.info(f"[Meta] {len(jobs)} Canada data jobs")
+        logger.info(f"[Meta] DOM fallback: {len(jobs)} Canada data jobs")
         return jobs
 
 
@@ -516,8 +505,26 @@ class J2WScraper(BaseScraper):
 
     def scrape(self, driver) -> list:
         driver.get(self.careers_url)
-        time.sleep(10)
-        self.slow_scroll(driver)
+        time.sleep(8)
+        # Dismiss cookie banners (Cornerstone/SAP SuccessFactors sites)
+        for sel in ["#cookie-accept", "button.cookiemanageracceptall",
+                    "button#onetrust-accept-btn-handler",
+                    "//button[contains(text(),'Accept All Cookies')]",
+                    "//button[contains(text(),'Accept Cookies')]"]:
+            try:
+                btn = (driver.find_element(By.XPATH, sel) if sel.startswith("//")
+                       else driver.find_element(By.CSS_SELECTOR, sel))
+                if btn.is_displayed():
+                    btn.click()
+                    time.sleep(3)
+                    break
+            except Exception:
+                continue
+        time.sleep(3)
+        try:
+            self.slow_scroll(driver)
+        except Exception:
+            pass
         time.sleep(3)
 
         links = []
@@ -608,25 +615,73 @@ class LululemonScraper(BaseScraper):
         return jobs
 
 
-# ── CGI GROUP (cgi.com Drupal careers page) ──
+# ── CGI GROUP (Njoyn ATS at cgi.njoyn.com) ──
+_CGI_NJOYN = "https://cgi.njoyn.com/CORP/xweb/xweb.asp?NTNK=c&clid=21001&Page=joblisting"
+
 class CGIScraper(BaseScraper):
     def scrape(self, driver) -> list:
-        driver.get(self.careers_url)
-        time.sleep(8)
+        driver.get(_CGI_NJOYN)
+        time.sleep(6)
+
+        # Fill keyword search box and submit
+        try:
+            box = driver.find_element(By.CSS_SELECTOR,
+                "input[name='q'], input[name='keyword'], input[id*='keyword'], input[type='text']")
+            box.clear()
+            box.send_keys("data engineer")
+            btn = driver.find_element(By.CSS_SELECTOR,
+                "input[type='submit'], button[type='submit'], input[value='Search']")
+            btn.click()
+            time.sleep(6)
+        except Exception:
+            pass
+
         self.slow_scroll(driver)
-        time.sleep(3)
-        # CGI job links go to njoyn or their internal job pages
+        time.sleep(2)
+
+        # Njoyn job links — job detail pages
         links = driver.find_elements(By.CSS_SELECTOR,
-            "a[href*='njoyn.com'], a[href*='/careers/'][href*='job'], h3 a, .views-field-title a")
+            "a[href*='Page=jobdetails'], a[href*='njoyn.com'][href*='job'], "
+            ".joblisting a, table a[href*='xweb.asp']")
+        if not links:
+            links = driver.find_elements(By.CSS_SELECTOR, "a[href*='njoyn.com']")
+
         seen, jobs = set(), []
-        for link in links[:60]:
+        for link in links[:100]:
             try:
-                url   = self.safe_attr(link, "href")
-                title = self.safe_text(link)
-                if not url or not title or url in seen:
+                url = self.safe_attr(link, "href")
+                if not url or url in seen:
                     continue
                 seen.add(url)
-                if not self.is_data_role(title):
+
+                title = ""
+                # Njoyn: <a>(code) is inside <td> inside <tr>
+                # ../.. goes to <tr>; getting TDs from there gives just this row's cells
+                try:
+                    tr = link.find_element(By.XPATH, "../..")
+                    tds = tr.find_elements(By.TAG_NAME, "td")
+                    # Njoyn columns: [job_code] [title] [department] [location] [country]
+                    for td in tds[1:]:
+                        t = self.safe_text(td).strip()
+                        if t and not re.match(r'^J\d{4}-\d{4}', t):
+                            title = t
+                            break
+                except Exception:
+                    pass
+
+                # Fallback: strip job code prefix from row text
+                if not title:
+                    row = self.safe_text(link)
+                    for tr_xpath in ["../../..", "../..", ".."]:
+                        try:
+                            row = self.safe_text(link.find_element(By.XPATH, tr_xpath))
+                            if row:
+                                break
+                        except Exception:
+                            continue
+                    title = re.sub(r'^J\d{4}-\d{4}\s*', '', row).strip()
+
+                if not title or not self.is_data_role(title):
                     continue
                 jobs.append(self.build_job(title=title, location="Canada", url=url))
             except Exception:
@@ -666,9 +721,28 @@ class McKinseyScraper(BaseScraper):
 class CitibankScraper(BaseScraper):
     def scrape(self, driver) -> list:
         driver.get(self.careers_url)
-        time.sleep(8)
-        self.slow_scroll(driver)
-        time.sleep(3)
+        time.sleep(6)
+        # Dismiss cookie consent popup
+        for sel in ["button[data-ph-id*='cookie'] ", "button.onetrust-accept-btn-handler",
+                    "//button[contains(text(),'Accept Cookies')]",
+                    "//button[contains(text(),'Reject Cookies')]"]:
+            try:
+                if sel.startswith("//"):
+                    btn = driver.find_element(By.XPATH, sel)
+                else:
+                    btn = driver.find_element(By.CSS_SELECTOR, sel)
+                if btn.is_displayed():
+                    btn.click()
+                    time.sleep(2)
+                    break
+            except Exception:
+                continue
+        time.sleep(4)
+        try:
+            self.slow_scroll(driver)
+        except Exception:
+            pass
+        time.sleep(2)
         links = driver.find_elements(By.CSS_SELECTOR,
             "a[href*='/job/'], a[href*='jobs.citi.com/job'], "
             "[class*='job-title'] a, [class*='jobTitle'] a, h2 a, h3 a")
@@ -682,9 +756,16 @@ class CitibankScraper(BaseScraper):
                 seen.add(url)
                 if not self.is_data_role(title):
                     continue
-                if not self.is_canada_job(title + " " + url):
+                location = ""
+                try:
+                    parent = link.find_element(By.XPATH, "../..")
+                    location = self.safe_text(parent.find_element(By.CSS_SELECTOR,
+                        "[class*='location'], [class*='Location'], span:nth-child(2)"))
+                except Exception:
+                    pass
+                if location and not self.is_canada_job(location):
                     continue
-                jobs.append(self.build_job(title=title, location="Canada", url=url))
+                jobs.append(self.build_job(title=title, location=location or "Canada", url=url))
             except Exception:
                 continue
         logger.info(f"[Citibank Canada] {len(jobs)} data jobs")
@@ -1400,7 +1481,12 @@ _TCS_SELS = [
 
 class TCSScraper(BaseScraper):
     def scrape(self, driver) -> list:
-        driver.get(_TCS_URL)
+        try:
+            driver.set_page_load_timeout(25)
+            driver.get(_TCS_URL)
+        except Exception as e:
+            logger.warning(f"[TCS] Page load timeout/error: {e}")
+            return []
         time.sleep(8)
         self.slow_scroll(driver)
         time.sleep(3)
@@ -1435,6 +1521,12 @@ _ICIMS_SELS = [
     "a.iCIMS_Anchor",
     ".iCIMS_JobTitleText a",
     "table.iCIMS_JobsTable a",
+    # iCIMS JDX (modern SPA — careers.kpmg.ca style)
+    "a[data-details-url]",
+    "[class*='job-title'] a",
+    "[class*='jobTitle'] a",
+    "h2 a[href*='/jobs/']",
+    "a[href*='/jobs/'][aria-label]",
 ]
 
 class ICIMSScraper(BaseScraper):
@@ -1447,8 +1539,11 @@ class ICIMSScraper(BaseScraper):
     def scrape(self, driver) -> list:
         driver.get(self._search_url)
         time.sleep(6)
-        self.slow_scroll(driver)
-        time.sleep(2)
+        try:
+            self.slow_scroll(driver)
+            time.sleep(2)
+        except Exception:
+            pass
         links = []
         for sel in _ICIMS_SELS:
             found = driver.find_elements(By.CSS_SELECTOR, sel)
@@ -1464,6 +1559,8 @@ class ICIMSScraper(BaseScraper):
             title = self.safe_text(link)
             url = self.safe_attr(link, "href")
             if not title or not url or url in seen:
+                continue
+            if title.lower() in ("apply now", "apply", "view job", "learn more"):
                 continue
             seen.add(url)
             if not self.is_data_role(title):
@@ -1516,6 +1613,58 @@ class InfosysScraper(BaseScraper):
 
 
 # ── GENERIC FALLBACK ────────────────────────────────────────────
+class CanadaLifeScraper(BaseScraper):
+    """Taleo-based board at jobs.canadalife.com."""
+
+    _SEARCH = "https://jobs.canadalife.com/search?q=data+engineer"
+
+    def scrape(self, driver) -> list:
+        import re as _re
+        import requests as _req
+        headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
+        try:
+            r = _req.get(self._SEARCH, headers=headers, timeout=15)
+            if r.status_code != 200:
+                logger.warning(f"[{self.company_name}] CanadaLife HTTP {r.status_code}")
+                return []
+        except Exception as e:
+            logger.error(f"[{self.company_name}] CanadaLife error: {e}")
+            return []
+
+        html = r.text
+        jobs = []
+        # Each job appears twice (desktop + mobile) — deduplicate by URL
+        seen = set()
+        # Pattern: <a href="/job/..." class="jobTitle-link">Title</a>
+        for m in _re.finditer(
+            r'<a href="(/job/[^"]+)" class="jobTitle-link">([^<]+)</a>',
+            html,
+        ):
+            url_path = m.group(1)
+            if url_path in seen:
+                continue
+            seen.add(url_path)
+            title = m.group(2).replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").strip()
+            if not self.is_data_role(title):
+                continue
+            # Location: <span class="jobLocation">City, ON, CA</span>
+            window = html[m.end():m.end() + 2000]
+            lm = _re.search(r'<span class="jobLocation">\s*([^<]+?)\s*</span>', window)
+            location = lm.group(1).strip() if lm else "Canada"
+            location = _re.sub(r',\s*CA\s*$', ', Canada', location)
+            if not self.is_canada_job(location):
+                continue
+            jobs.append(self.build_job(
+                title=title,
+                location=location,
+                url="https://jobs.canadalife.com" + url_path,
+                skills=[],
+                posted="Recent",
+            ))
+        logger.info(f"[{self.company_name}] {len(jobs)} jobs")
+        return jobs
+
+
 class GenericScraper(BaseScraper):
     """
     ਕਿਸੇ ਵੀ company ਲਈ fallback
@@ -1625,7 +1774,6 @@ def get_scraper(company: dict):
         # Custom Selenium
         "iA Financial Group":          IAFinancialScraper,
         "PayPal Canada":               PayPalScraper,
-        "Oracle Canada":               OracleScraper,
         "WELL Health Technologies":    WELLHealthScraper,
         "Stantec":                     StantecScraper,
         "Pfizer Canada":               PfizerScraper,
@@ -1645,10 +1793,11 @@ def get_scraper(company: dict):
         # j2w (SAP SuccessFactors)
         "City of Toronto":            J2WScraper,
         "Infosys Canada":             InfosysScraper,
+        "Great-West Lifeco":          CanadaLifeScraper,
         # iCIMS
         "KPMG Canada":                lambda c: ICIMSScraper(
             c,
-            "https://kpmgca.icims.com/jobs/search?ss=1&searchKeyword=data+engineer&searchLocation=Canada",
+            "https://careers.kpmg.ca/jobs?keyword=data+engineer&location=Canada",
             "Canada",
         ),
         "Mackenzie Investments":      lambda c: ICIMSScraper(

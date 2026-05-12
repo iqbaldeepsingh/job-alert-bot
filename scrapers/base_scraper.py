@@ -109,7 +109,8 @@ class BaseScraper:
             "halifax", "ontario", "british columbia", "alberta",
             "montreal", "ottawa", "waterloo", "mississauga", "brampton",
             "quebec", "winnipeg", "burnaby", "kitchener", "oakville",
-            "stellarton", "saskatoon", "st. john", "remote - canada",
+            "stellarton", "saskatoon", "st. john", "markham", "richmond hill",
+            "hamilton", "london, on", "remote - canada",
             "remote – canada", "remote canada",
         ]
         return any(k in loc for k in canada_keywords)

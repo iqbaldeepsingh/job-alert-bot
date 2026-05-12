@@ -48,6 +48,17 @@ class WorkdayScraper(BaseScraper):
 
     # ── Workday JSON API (fast, no browser needed) ───────────────
 
+    def _location_facets(self) -> dict:
+        """Extract locationCountry/locationHierarchy facet IDs from the careers URL."""
+        from urllib.parse import urlparse, parse_qs
+        params = parse_qs(urlparse(self.careers_url).query)
+        facets: dict = {}
+        if "locationCountry" in params:
+            facets["locationCountry"] = params["locationCountry"]
+        if "locationHierarchy" in params:
+            facets["locationHierarchy"] = params["locationHierarchy"]
+        return facets
+
     def _scrape_api(self):
         if not self._tenant:
             return None
@@ -55,14 +66,21 @@ class WorkdayScraper(BaseScraper):
         api_url = (f"https://{self._tenant}.{self._wd}.myworkdayjobs.com"
                    f"/wday/cxs/{self._tenant}/{self._board}/jobs")
 
+        location_facets = self._location_facets()
+
         try:
             # Workday limit: some tenants reject limit>20, so use 20 for safety
             PAGE = 20
             all_postings = []
             offset = 0
             while True:
-                body = {"appliedFacets": {}, "limit": PAGE, "offset": offset, "searchText": "data engineer"}
+                body = {"appliedFacets": location_facets, "limit": PAGE, "offset": offset, "searchText": "data engineer"}
                 r = requests.post(api_url, headers=HTTP_HEADERS, json=body, timeout=12)
+                if r.status_code == 400 and location_facets and offset == 0:
+                    # Tenant rejects this facet — retry without location filter
+                    location_facets = {}
+                    body["appliedFacets"] = {}
+                    r = requests.post(api_url, headers=HTTP_HEADERS, json=body, timeout=12)
                 if r.status_code != 200:
                     return None
                 data = r.json()

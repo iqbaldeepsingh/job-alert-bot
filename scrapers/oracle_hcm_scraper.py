@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 ORACLE_HCM_TENANTS = {
     "JP Morgan Canada":       ("jpmc.fa.oraclecloud.com", "CX_1001"),
     "American Express Canada": ("egug.fa.us2.oraclecloud.com", "CX_1"),
+    "Oracle Canada":          ("eeho.fa.us2.oraclecloud.com", "CX_45001"),
 }
 
 _API = "https://{domain}/hcmRestApi/resources/latest/recruitingCEJobRequisitions"
@@ -21,6 +22,13 @@ class OracleHCMScraper(BaseScraper):
             return []
 
         domain, site_number = config
+
+        # Canada locationId per tenant (from network inspection)
+        LOCATION_IDS = {
+            "Oracle Canada": "300000000106749",
+        }
+        location_id = LOCATION_IDS.get(self.company_name)
+
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
             "Accept": "application/json",
@@ -37,7 +45,10 @@ class OracleHCMScraper(BaseScraper):
                     _API.format(domain=domain),
                     params={
                         "onlyData": "true",
-                        "finder": f"findReqs;siteNumber={site_number}",
+                        "finder": (
+                            f"findReqs;siteNumber={site_number},locationId={location_id}"
+                            if location_id else f"findReqs;siteNumber={site_number}"
+                        ),
                         "limit": limit,
                         "offset": offset,
                         "expand": "requisitionList",

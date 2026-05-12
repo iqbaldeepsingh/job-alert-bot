@@ -144,6 +144,36 @@ Each section covers one bot run cycle: what was broken → what was fixed → re
 
 ---
 
+## Engineering Roadmap
+
+### Phase 1 — Working (current)
+Get all scrapers returning jobs. Validate via `--broad` test. Fix broken slugs, ATS mismatches, Selenium fallbacks.
+
+### Phase 2 — Dynamic + Optimized + Fault Tolerant (next)
+Requires deep research + dedicated planning session before implementation.
+
+**Dynamic:**
+- Auto-detect ATS type from careers URL (check for `myworkdayjobs.com`, `greenhouse.io`, `ashbyhq.com`, etc.)
+- Auto-discover Greenhouse/Lever slugs from the careers page
+- Adding a new company = just a name + URL, no manual `settings.py` ATS config
+
+**Optimized:**
+- Replace `time.sleep()` with smart `WebDriverWait` conditions
+- Parallel Selenium pool (multiple browsers running concurrently)
+- 24h job cache — skip companies where nothing changed since last run
+- Target: full run under 2 minutes
+
+**Fault Tolerant:**
+- Per-company timeout — one hanging scraper doesn't block the rest
+- Retry with exponential backoff on transient failures
+- Partial failure handling — failed companies logged, rest of run continues
+- Scraper health alerting — email/notify when a scraper dies for 3+ consecutive runs
+
+### Phase 3 — Final Goal
+Perfectly working with minimal runtime. Zero manual slug/ATS maintenance. Self-healing scrapers.
+
+---
+
 ## Known Issues (as of 2026-05-11)
 
 ### Selenium companies returning 0 jobs (broken CSS selectors)

@@ -116,7 +116,19 @@ class PhenomScraper(BaseScraper):
                 if not title or not self.is_data_role(title):
                     continue
 
-                location = f"{city}, {state}, Canada" if city else "Canada"
+                CA_PROVINCES = {
+                    "ontario", "british columbia", "alberta", "quebec",
+                    "manitoba", "saskatchewan", "nova scotia", "new brunswick",
+                    "newfoundland", "prince edward island", "on", "bc", "ab",
+                    "qc", "mb", "sk", "ns", "nb", "nl", "pe",
+                }
+                # Only append Canada if state is a Canadian province
+                if city and state.lower() in CA_PROVINCES:
+                    location = f"{city}, {state}, Canada"
+                elif city:
+                    location = f"{city}, {state}"
+                else:
+                    location = "Canada"
                 if not self.is_canada_job(location):
                     continue
 
