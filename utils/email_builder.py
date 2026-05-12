@@ -36,26 +36,52 @@ body{margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;}
 .jobs{background:#fff;border-radius:12px;padding:18px 22px;border:1px solid #eee;}
 .ch{font-size:13px;font-weight:700;color:#333;margin:16px 0 4px;border-left:3px solid #185FA5;padding-left:8px;}
 .cn{font-weight:400;color:#aaa;font-size:11px;}
-.jr{padding:10px 0;border-bottom:1px solid #eee;display:block;}
+.jr{padding:12px 0;border-bottom:1px solid #eee;}
 .jt{color:#0C447C;font-size:14px;font-weight:600;}
-.lv{color:#666;font-size:11px;}
-.jm{color:#555;font-size:12px;}
-.btn{display:inline-block;margin-top:6px;padding:4px 14px;background:#185FA5;color:#fff;text-decoration:none;border-radius:6px;font-size:12px;}
+.sal{color:#888;font-size:11px;margin-left:6px;}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;vertical-align:middle;margin-left:6px;}
+.b-lead{background:#F3E8FB;color:#5B1A8A;}
+.b-senior{background:#FAEEDA;color:#633806;}
+.b-mid{background:#E6F1FB;color:#0C447C;}
+.b-entry{background:#EAF3DE;color:#27500A;}
+.jm{color:#777;font-size:11px;margin:4px 0;}
+.sk{display:inline-block;background:#EEF4FB;color:#1A5FA5;border:1px solid #C5D9F0;border-radius:4px;padding:1px 7px;font-size:10px;margin:3px 3px 0 0;}
+.btn{display:inline-block;margin-top:7px;padding:5px 16px;background:#0C447C;color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;}
 .ftr{text-align:center;color:#bbb;font-size:11px;padding:14px 0;}
 </style>
 """
 
 
+def _badge(level: str) -> str:
+    l = level.lower()
+    if "staff" in l or "lead" in l:
+        return f'<span class="badge b-lead">Staff / Lead</span>'
+    if "senior" in l:
+        return f'<span class="badge b-senior">Senior</span>'
+    if "entry" in l:
+        return f'<span class="badge b-entry">Entry Level</span>'
+    return f'<span class="badge b-mid">Mid-Level</span>'
+
+
 def build_job_row(job: dict) -> str:
-    skills = ", ".join(job.get("skills", [])[:4])
     url    = job.get("url", "")
     level  = job.get("level", "")
+    posted = job.get("posted", "")
+    salary = job.get("salary", "")
+    skills = job.get("skills", [])[:5]
     apply  = f'<a class="btn" href="{url}">Apply Now →</a>' if url else ""
+    skill_pills = "".join(f'<span class="sk">{s}</span>' for s in skills)
+    meta = (f'🏢 {job["company"]} &nbsp;·&nbsp; '
+            f'📍 {job.get("location","Canada")} &nbsp;·&nbsp; '
+            f'🏢 Full-time'
+            f'{(" &nbsp;·&nbsp; 📅 " + posted) if posted else ""}')
     return (f'<div class="jr">'
-            f'<b class="jt">{job["title"]}</b> <span class="lv">[{level}]</span><br>'
-            f'<span class="jm">🏢 {job["company"]} &nbsp;·&nbsp; 📍 {job.get("location","Canada")}'
-            f'{(" &nbsp;·&nbsp; " + skills) if skills else ""}</span><br>'
-            f'{apply}</div>')
+            f'<b class="jt">{job["title"]}</b>{_badge(level)}'
+            f'{"<span class=\\"sal\\">💰 " + salary + "</span>" if salary else ""}<br>'
+            f'<div class="jm">{meta}</div>'
+            f'{"<div>" + skill_pills + "</div>" if skill_pills else ""}'
+            f'{apply}'
+            f'</div>')
 
 
 def build_email_html(jobs: list, run_time: str) -> str:

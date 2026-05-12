@@ -555,17 +555,51 @@ class J2WScraper(BaseScraper):
         return jobs
 
 
-# ── SCOTIABANK (j2w — hardcoded search URL) ──────────────────────
-_SCOT_SEARCH = (
-    "https://jobs.scotiabank.com/search-results"
-    "?keywords=data+engineer&location=Canada&locale=en_US"
-)
-
-
-class ScotiabankScraper(J2WScraper):
+# ── SCOTIABANK (j2w — direct search URL, locationsearch param works) ──
+class ScotiabankScraper(BaseScraper):
     def scrape(self, driver) -> list:
-        self.careers_url = _SCOT_SEARCH
-        return super().scrape(driver)
+        driver.get("https://jobs.scotiabank.com/search/?q=data+engineer&locationsearch=Canada")
+        time.sleep(7)
+
+        # Dismiss cookie consent popup if present
+        for sel in ["button#onetrust-accept-btn-handler", "button.accept-btn",
+                    "button[aria-label*='Accept']"]:
+            try:
+                btn = driver.find_element(By.CSS_SELECTOR, sel)
+                if btn.is_displayed():
+                    btn.click()
+                    time.sleep(2)
+                    break
+            except Exception:
+                continue
+
+        self.slow_scroll(driver)
+        time.sleep(3)
+
+        # Extract job links — Scotiabank j2w uses /job/<slug>/<id>/ pattern
+        links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/job/']")
+        if not links:
+            logger.warning("[Scotiabank] no job links found")
+            return []
+
+        logger.info(f"[Scotiabank] {len(links)} raw links found")
+        seen_urls: set = set()
+        jobs = []
+        for link in links[:80]:
+            try:
+                title = self.safe_text(link)
+                url   = self.safe_attr(link, "href")
+                if not title or not url or url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                if not self.is_data_role(title):
+                    continue
+                jobs.append(self.build_job(title=title, location="Canada", url=url))
+            except Exception:
+                continue
+
+        logger.info(f"[Scotiabank] {len(jobs)} data jobs")
+        return jobs
 
 
 # ── BANK OF CANADA (j2w RSS — domestic employer, all jobs are Canada) ──
