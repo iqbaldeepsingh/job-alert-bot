@@ -134,8 +134,21 @@ class WorkdayScraper(BaseScraper):
         except Exception:
             return []
 
+    def _selenium_url(self) -> str:
+        """Return a clean Workday URL for Selenium — strip ?q= so the SPA renders the full
+        job board instead of a filtered search results page (which uses a different DOM)."""
+        from urllib.parse import urlparse, urlencode, parse_qs, urlunparse
+        parsed = urlparse(self.careers_url)
+        params = parse_qs(parsed.query, keep_blank_values=True)
+        # Keep locationCountry/locationHierarchy (Canada filter), drop keyword search
+        params.pop("q", None)
+        params.pop("keywords", None)
+        new_query = urlencode({k: v[0] for k, v in params.items()})
+        return urlunparse(parsed._replace(query=new_query))
+
     def _scrape_selenium(self, driver) -> list:
-        driver.get(self.careers_url)
+        url = self._selenium_url()
+        driver.get(url)
         time.sleep(10)  # Workday SPAs need extra time
 
         # Wait for job results container
