@@ -50,6 +50,7 @@ GREENHOUSE_SLUGS = {
     "Affirm Canada":              "affirm",
     "Okta Canada":                "okta",
     "Robinhood Canada":           "robinhood",
+    "Capco Canada":               "capco",
 }
 
 # Slugs verified to work — skip +inc/+hq fallbacks for these

@@ -82,6 +82,13 @@ class WorkdayScraper(BaseScraper):
                 if not self.is_data_role(title):
                     continue
                 location = p.get("locationsText", "") or p.get("primaryLocation", "")
+                # Some Workday tenants (e.g. Accenture) return empty locationsText even when
+                # locationCountry facet is applied — fall back to bulletFields for location text
+                if not location:
+                    bullets = p.get("bulletFields", [])
+                    location = next((b for b in bullets if any(
+                        kw in b.lower() for kw in ["canada","toronto","montreal","vancouver","ottawa","calgary","remote"]
+                    )), "Canada")
                 if not self.is_canada_job(location):
                     continue
                 path = p.get("externalPath", "")
