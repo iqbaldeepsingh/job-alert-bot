@@ -555,6 +555,142 @@ class J2WScraper(BaseScraper):
         return jobs
 
 
+# ── EY CANADA (careers.ey.com — SuccessFactors, link selector works) ──
+class EYScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(self.careers_url)
+        time.sleep(8)
+        self.slow_scroll(driver)
+        time.sleep(3)
+        links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/ey/job/']")
+        seen, jobs = set(), []
+        for link in links[:60]:
+            try:
+                url   = self.safe_attr(link, "href")
+                title = self.safe_text(link)
+                if not url or url in seen:
+                    continue
+                seen.add(url)
+                if not title:
+                    slug = url.split("/ey/job/")[-1].strip("/").split("/")[0]
+                    title = slug.replace("-", " ").title()
+                if not self.is_data_role(title):
+                    continue
+                jobs.append(self.build_job(title=title, location="Canada", url=url))
+            except Exception:
+                continue
+        logger.info(f"[EY Canada] {len(jobs)} data jobs")
+        return jobs
+
+
+# ── LULULEMON CANADA (iCIMS careers site) ──
+class LululemonScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(self.careers_url)
+        time.sleep(8)
+        self.slow_scroll(driver)
+        time.sleep(3)
+        links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/JobDetail/']")
+        seen, jobs = set(), []
+        for link in links[:60]:
+            try:
+                url   = self.safe_attr(link, "href")
+                title = self.safe_text(link)
+                if not url or not title or url in seen:
+                    continue
+                seen.add(url)
+                if not self.is_data_role(title):
+                    continue
+                jobs.append(self.build_job(title=title, location="Canada", url=url))
+            except Exception:
+                continue
+        logger.info(f"[Lululemon Canada] {len(jobs)} data jobs")
+        return jobs
+
+
+# ── CGI GROUP (cgi.com Drupal careers page) ──
+class CGIScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(self.careers_url)
+        time.sleep(8)
+        self.slow_scroll(driver)
+        time.sleep(3)
+        # CGI job links go to njoyn or their internal job pages
+        links = driver.find_elements(By.CSS_SELECTOR,
+            "a[href*='njoyn.com'], a[href*='/careers/'][href*='job'], h3 a, .views-field-title a")
+        seen, jobs = set(), []
+        for link in links[:60]:
+            try:
+                url   = self.safe_attr(link, "href")
+                title = self.safe_text(link)
+                if not url or not title or url in seen:
+                    continue
+                seen.add(url)
+                if not self.is_data_role(title):
+                    continue
+                jobs.append(self.build_job(title=title, location="Canada", url=url))
+            except Exception:
+                continue
+        logger.info(f"[CGI Group] {len(jobs)} data jobs")
+        return jobs
+
+
+# ── McKINSEY CANADA (mckinsey.com custom careers) ──
+class McKinseyScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(self.careers_url)
+        time.sleep(10)
+        self.slow_scroll(driver)
+        time.sleep(3)
+        links = driver.find_elements(By.CSS_SELECTOR,
+            "a[href*='/careers/'][href*='job'], a[href*='mckinsey.com/careers'], "
+            "[class*='job'] a, [class*='result'] a")
+        seen, jobs = set(), []
+        for link in links[:60]:
+            try:
+                url   = self.safe_attr(link, "href")
+                title = self.safe_text(link)
+                if not url or not title or url in seen:
+                    continue
+                seen.add(url)
+                if not self.is_data_role(title):
+                    continue
+                jobs.append(self.build_job(title=title, location="Canada", url=url))
+            except Exception:
+                continue
+        logger.info(f"[McKinsey Canada] {len(jobs)} data jobs")
+        return jobs
+
+
+# ── CITIBANK CANADA (TalentBrew — jobs.citi.com) ──
+class CitibankScraper(BaseScraper):
+    def scrape(self, driver) -> list:
+        driver.get(self.careers_url)
+        time.sleep(8)
+        self.slow_scroll(driver)
+        time.sleep(3)
+        links = driver.find_elements(By.CSS_SELECTOR,
+            "a[href*='/job/'], a[href*='jobs.citi.com/job'], "
+            "[class*='job-title'] a, [class*='jobTitle'] a, h2 a, h3 a")
+        seen, jobs = set(), []
+        for link in links[:60]:
+            try:
+                url   = self.safe_attr(link, "href")
+                title = self.safe_text(link)
+                if not url or not title or url in seen:
+                    continue
+                seen.add(url)
+                if not self.is_data_role(title):
+                    continue
+                if not self.is_canada_job(title + " " + url):
+                    continue
+                jobs.append(self.build_job(title=title, location="Canada", url=url))
+            except Exception:
+                continue
+        logger.info(f"[Citibank Canada] {len(jobs)} data jobs")
+        return jobs
+
+
 # ── SCOTIABANK (j2w — direct search URL, locationsearch param works) ──
 class ScotiabankScraper(BaseScraper):
     def scrape(self, driver) -> list:
@@ -1466,6 +1602,12 @@ def get_scraper(company: dict):
         "Shopify":                    ShopifyScraper,
         "IBM Canada":                 IBMScraper,
         "Scotiabank":                 ScotiabankScraper,
+        # Consulting firms — custom Selenium scrapers
+        "EY Canada":                  EYScraper,
+        "Lululemon Canada":           LululemonScraper,
+        "CGI Group":                  CGIScraper,
+        "McKinsey Canada":            McKinseyScraper,
+        "Citibank Canada":            CitibankScraper,
         # j2w (SAP SuccessFactors) Selenium scrapers
         "Deloitte Canada":            J2WScraper,
         "SAP Canada":                 J2WScraper,
