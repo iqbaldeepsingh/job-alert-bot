@@ -16,9 +16,12 @@ JOB_CARD_SELECTORS = [
     "[data-automation-id='compositeContainer'] li",
     "ul[data-automation-id='jobResults'] li",
     "li[class*='css-'][data-automation-id]",
-    "li.css-1q2dra3",
-    "ul[role='list'] li",
+    # 2025+ Workday DOM — data-automation-id based (more stable than class names)
+    "[data-automation-id='jobResults'] [data-automation-id='jobItem']",
+    "section[data-automation-id='jobResults'] li",
+    "ul[role='list'] > li",
     "li[class*='css-']",
+    "li.css-1q2dra3",  # old selector — kept as last resort
     "[class*='job-listing'] li",
 ]
 
@@ -102,17 +105,40 @@ class WorkdayScraper(BaseScraper):
                 return cards
         return []
 
+    def _extract_from_links(self, driver) -> list:
+        """Extract jobs directly from <a> tags with Workday job URLs — fallback when card selectors fail."""
+        try:
+            links = driver.find_elements(By.CSS_SELECTOR,
+                "a[data-automation-id='jobTitle'], a[href*='/job/'], a[href*='myworkdayjobs']")
+            seen, jobs = set(), []
+            for link in links[:50]:
+                title = self.safe_text(link)
+                url   = self.safe_attr(link, "href")
+                if not title or not url or url in seen:
+                    continue
+                seen.add(url)
+                if not self.is_data_role(title):
+                    continue
+                if not self.is_canada_job(title + " " + url):
+                    continue
+                jobs.append(self.build_job(title=title, url=url))
+            if jobs:
+                logger.info(f"[{self.company_name}] link fallback: {len(jobs)} jobs")
+            return jobs
+        except Exception:
+            return []
+
     def _scrape_selenium(self, driver) -> list:
         driver.get(self.careers_url)
-        time.sleep(8)  # Workday SPAs need extra time
+        time.sleep(10)  # Workday SPAs need extra time
 
-        # Wait for page fully loaded — check for job results container
+        # Wait for job results container
         try:
-            WebDriverWait(driver, 20).until(
+            WebDriverWait(driver, 25).until(
                 EC.presence_of_element_located(
                     (By.CSS_SELECTOR,
                      "[data-automation-id='jobItem'], [data-automation-id='jobResults'], "
-                     "ul[role='list'], li[class*='css-']")
+                     "ul[role='list'], li[class*='css-'], a[data-automation-id='jobTitle']")
                 )
             )
         except TimeoutException:
@@ -137,6 +163,10 @@ class WorkdayScraper(BaseScraper):
                 pass
 
         if not cards:
+            # Last resort: extract job links directly from page
+            jobs = self._extract_from_links(driver)
+            if jobs:
+                return jobs
             logger.warning(f"[{self.company_name}] Selenium: no job cards found")
             return []
 

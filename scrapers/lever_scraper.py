@@ -6,15 +6,15 @@ logger = logging.getLogger(__name__)
 
 LEVER_SLUGS = {
     "Wealthsimple":          "wealthsimple",
-    "Snowflake Canada":      "snowflake",
+    "Snowflake Canada":      "snowflakecomputing",
     "Spotify Canada":        "spotify",
     "Veeva Systems Canada":  "veeva",
     "PointClickCare":        "pointclickcare",
-    # Palantir has 0 Canada postings but keep for future
     "Palantir Canada":       "palantir",
-    "Klarna Canada":         "klarna",
+    "Klarna Canada":         "klarna-canada",
     "Wave Financial":        "waveapps",
     "Wattpad / Naver Canada": "wattpad",
+    "KUBRA":                 "kubra",
 }
 
 
