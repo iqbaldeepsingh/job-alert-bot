@@ -113,12 +113,13 @@ class WorkdayScraper(BaseScraper):
         return []
 
     def _extract_from_links(self, driver) -> list:
-        """Extract jobs directly from <a> tags with Workday job URLs — fallback when card selectors fail."""
+        """Extract jobs directly from <a> tags — fallback when card selectors fail.
+        Trusts the locationCountry facet already applied in the URL, so skips is_canada_job."""
         try:
             links = driver.find_elements(By.CSS_SELECTOR,
                 "a[data-automation-id='jobTitle'], a[href*='/job/'], a[href*='myworkdayjobs']")
             seen, jobs = set(), []
-            for link in links[:50]:
+            for link in links[:60]:
                 title = self.safe_text(link)
                 url   = self.safe_attr(link, "href")
                 if not title or not url or url in seen:
@@ -126,9 +127,7 @@ class WorkdayScraper(BaseScraper):
                 seen.add(url)
                 if not self.is_data_role(title):
                     continue
-                if not self.is_canada_job(title + " " + url):
-                    continue
-                jobs.append(self.build_job(title=title, url=url))
+                jobs.append(self.build_job(title=title, location="Canada", url=url))
             if jobs:
                 logger.info(f"[{self.company_name}] link fallback: {len(jobs)} jobs")
             return jobs
@@ -163,6 +162,8 @@ class WorkdayScraper(BaseScraper):
 
         if not cards:
             try:
+                self.slow_scroll(driver)
+                time.sleep(5)
                 self.slow_scroll(driver)
                 time.sleep(3)
                 cards = self._find_job_cards(driver)

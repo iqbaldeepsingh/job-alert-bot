@@ -15,8 +15,8 @@ ASHBY_SLUGS = {
     "Airbyte Canada":       "airbyte",
     "Astronomer Canada":    "astronomer",
     "Prefect":              "prefect",
-    "Jobber":               "getjobber",
-    "Top Hat":              "tophat",
+    "Jobber":               "jobber",
+    "Top Hat":              "top-hat",
     "Prodigy Education":    "prodigy-education",
     "Clearco":              "clearco",
 }

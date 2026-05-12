@@ -13,11 +13,11 @@ GREENHOUSE_SLUGS = {
     "Airbnb Canada":              "airbnb",
     "Datadog Canada":             "datadog",
     "MongoDB Canada":             "mongodb",
-    "Borealis AI (RBC)":          "borealisai",
+    # "Borealis AI (RBC)":        "borealisai",  # board inactive
     "Elastic Canada":             "elastic",
     # New companies — likely Greenhouse
-    "Coinbase Canada":            "coinbase",
-    "Nuvei":                      "nuvei",
+    # "Coinbase Canada":          "coinbase",  # board inactive — moved ATS
+    # "Nuvei":                    "nuvei",     # board inactive
     "Hootsuite":                  "hootsuite",
     "DoorDash Canada":            "doordashusa",
     "Reddit Canada":              "reddit",
@@ -27,12 +27,12 @@ GREENHOUSE_SLUGS = {
     "HubSpot Canada":             "hubspotjobs",
     "Twilio Canada":              "twilio",
     "Cloudflare Canada":          "cloudflare",
-    "Canva Canada":               "canva",
+    # "Canva Canada":             "canva",      # board inactive — uses custom ATS
     "TouchBistro":                "touchbistro",
     "Benevity":                   "benevity",
     "Ecobee":                     "ecobee",
     "Faire":                      "faire",
-    "Procore Technologies Canada":"procore",
+    # "Procore Technologies Canada": "procore", # board inactive
     "League Inc":                 "league",
     # New additions — unverified slugs
     "Instacart Canada":           "instacart",
