@@ -124,7 +124,7 @@ class BaseScraper:
             "data analyst", "pipeline engineer", "data infrastructure",
             "bi engineer", "bi developer", "business intelligence",
             "data reliability", "cloud data", "data ops",
-            "data scientist", "data science", "data management",
+            "data management",
             "data product", "data developer", "data dev",
             "data governance", "ml platform", "machine learning platform",
             "mlops", "data pipeline", "data quality", "data integration",
