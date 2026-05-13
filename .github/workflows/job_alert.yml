@@ -2,8 +2,8 @@ name: Daily Job Alert Bot
 
 on:
   schedule:
-    - cron: "0 13 * * *"   # 9 AM Toronto (EDT)
-    - cron: "0 22 * * *"   # 6 PM Toronto (EDT)
+    - cron: "0 12 * * *"   # 8 AM UTC-4 → targets 9 AM Toronto (EDT), scheduled early to offset GitHub Actions delay
+    - cron: "0 21 * * *"   # 5 PM UTC-4 → targets 6 PM Toronto (EDT), scheduled early to offset GitHub Actions delay
   workflow_dispatch:        # Manual trigger anytime
 
 jobs:
