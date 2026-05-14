@@ -48,9 +48,9 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           GMAIL_RECIPIENT:    ${{ secrets.GMAIL_RECIPIENT }}
         run: |
-          if [ "${{ github.event.schedule }}" = "0 22 * * *" ]; then
+          if [ "${{ github.event.schedule }}" = "0 21 * * *" ]; then
             python main.py --run evening
-          elif [ "${{ github.event.schedule }}" = "0 13 * * *" ]; then
+          elif [ "${{ github.event.schedule }}" = "0 12 * * *" ]; then
             python main.py --run morning
           else
             python main.py --run daily
