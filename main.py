@@ -14,6 +14,7 @@ Broad test:    python main.py --broad   (all roles: SE, QA, DevOps; skip dedup)
 import os
 import sys
 import time
+import random
 import logging
 import argparse
 from datetime import datetime
@@ -42,8 +43,14 @@ logger = logging.getLogger(__name__)
 
 
 # ── Scrape one company ──────────────────────────────────────────
+# Limit concurrent Chrome launches to 3 — prevents "Text file busy" on chromedriver binary
+# when multiple Selenium fallbacks fire simultaneously in Phase 1 (API scrapers that 422/CSRF)
+_chrome_semaphore = __import__("threading").Semaphore(3)
+
 def scrape_company(company: dict, headless: bool = True) -> list:
-    driver = build_driver(headless=headless)
+    with _chrome_semaphore:
+        time.sleep(random.uniform(0.3, 1.0))   # small stagger inside the semaphore
+        driver = build_driver(headless=headless)
     try:
         scraper = get_scraper(company)
         return scraper.run(driver)
