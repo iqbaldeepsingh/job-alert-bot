@@ -43,9 +43,9 @@ logger = logging.getLogger(__name__)
 
 
 # ── Scrape one company ──────────────────────────────────────────
-# Limit concurrent Chrome launches to 3 — prevents "Text file busy" on chromedriver binary
-# when multiple Selenium fallbacks fire simultaneously in Phase 1 (API scrapers that 422/CSRF)
-_chrome_semaphore = __import__("threading").Semaphore(3)
+# Limit concurrent Chrome launches to 2 — prevents "Text file busy" on chromedriver binary
+# when multiple Selenium fallbacks fire simultaneously in Phase 1 (Workday 422/CSRF fallbacks)
+_chrome_semaphore = __import__("threading").Semaphore(2)
 
 def scrape_company(company: dict, headless: bool = True) -> list:
     with _chrome_semaphore:

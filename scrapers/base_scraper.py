@@ -50,9 +50,16 @@ def build_driver(headless: bool = True) -> webdriver.Chrome:
     opts.add_experimental_option("excludeSwitches", ["enable-automation"])
     opts.add_experimental_option("useAutomationExtension", False)
 
-    driver = webdriver.Chrome(options=opts)
-    driver.implicitly_wait(5)
-    return driver
+    for attempt in range(4):
+        try:
+            driver = webdriver.Chrome(options=opts)
+            driver.implicitly_wait(5)
+            return driver
+        except OSError as e:
+            if e.errno == 26 and attempt < 3:  # Text file busy — chromedriver binary contention
+                time.sleep(3 + attempt * 2)    # 3s, 5s, 7s backoff
+                continue
+            raise
 
 
 class BaseScraper:
