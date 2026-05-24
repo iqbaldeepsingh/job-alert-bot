@@ -29,13 +29,12 @@ class OracleHCMScraper(BaseScraper):
         }
         location_id = LOCATION_IDS.get(self.company_name)
 
-        # Safety cap for tenants without locationId to avoid scanning thousands of global reqs
+        limit = 25
         MAX_PAGES = {"JP Morgan Canada": 20, "American Express Canada": 20}
         max_offset = MAX_PAGES.get(self.company_name, 9999) * limit
 
         jobs = []
         offset = 0
-        limit = 25
         total = None
 
         while True:

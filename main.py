@@ -59,9 +59,9 @@ logger = logging.getLogger(__name__)
 
 
 # ── Scrape one company ──────────────────────────────────────────
-# Limit concurrent Chrome launches to 2 — prevents "Text file busy" on chromedriver binary
-# when multiple Selenium fallbacks fire simultaneously in Phase 1 (Workday 422/CSRF fallbacks)
-_chrome_semaphore = __import__("threading").Semaphore(2)
+# Limit concurrent Chrome launches to 3 — prevents "Text file busy" on chromedriver binary.
+# Semaphore only gates the launch; multiple Chromes run simultaneously once started.
+_chrome_semaphore = __import__("threading").Semaphore(3)
 
 def scrape_company(company: dict, headless: bool = True) -> list:
     scraper = get_scraper(company)
@@ -132,9 +132,9 @@ def scrape_all(headless: bool = True, track_counts: bool = False):
                     jobs = []
                 _collect(c, jobs)
 
-    # Phase 1 (API, 40 threads) and Phase 2 (Selenium, 4 threads) run concurrently
+    # Phase 1 (API, 40 threads) and Phase 2 (Selenium, 6 threads) run concurrently
     t1 = _threading.Thread(target=_run_pool, args=(api_cos, 40), daemon=True)
-    t2 = _threading.Thread(target=_run_pool, args=(sel_cos, 4),  daemon=True)
+    t2 = _threading.Thread(target=_run_pool, args=(sel_cos, 6),  daemon=True)
     logger.info("Starting API + Selenium phases concurrently...")
     t1.start(); t2.start()
     t1.join();  t2.join()

@@ -72,6 +72,7 @@ def build_driver(headless: bool = True) -> webdriver.Chrome:
     for attempt in range(4):
         try:
             driver = webdriver.Chrome(options=opts)
+            driver.set_page_load_timeout(30)   # abort page loads that hang >30s
             driver.implicitly_wait(5)
             return driver
         except OSError as e:
