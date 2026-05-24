@@ -56,6 +56,19 @@ GREENHOUSE_SLUGS = {
     "Anthropic":                   "anthropic",
     "Stability AI":                "stabilityai",
     "Together AI":                 "togetherai",
+    "xAI":                         "xai",
+    "Inflection AI":               "inflectionai",
+    "Roblox":                      "roblox",
+    "Riot Games":                  "riotgames",
+    "Epic Games":                  "epicgames",
+    "Roku":                        "roku",
+    "GitLab":                      "gitlab",
+    "Waymo":                       "waymo",
+    "Jane Street":                 "janestreet",
+    "Point72":                     "point72",
+    "Jump Trading":                "jumptrading",
+    "WorldQuant":                  "worldquant",
+    "PDT Partners":                "pdtpartners",
 }
 
 # Slugs verified to work — skip +inc/+hq fallbacks for these

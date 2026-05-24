@@ -19,6 +19,8 @@ LEVER_SLUGS = {
     # ML / AI companies
     "Mistral AI":             "mistral",
     "Waabi":                  "waabi",
+    # Quant / HFT (no Canada filter — scraper handles location)
+    "Optiver":                "optiver",
 }
 
 
