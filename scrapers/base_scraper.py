@@ -144,6 +144,21 @@ class BaseScraper:
 
     def is_data_role(self, title: str) -> bool:
         t = title.lower()
+
+        # Exclude internships, co-ops, students
+        if any(x in t for x in ["intern", "co-op", "coop", "student", "placement"]):
+            return False
+
+        # Exclude management/director roles — whole-word match anywhere in title
+        if re.search(r'\b(manager|managers|director|directors)\b', t):
+            return False
+        if any(x in t for x in ["head of ", "managing director"]):
+            return False
+
+        # Exclude pure "data analyst" roles (keep "analytics engineer", "data analytics engineer")
+        if "data analyst" in t and "analytics engineer" not in t and "data analytics engineer" not in t:
+            return False
+
         keywords = [
             "data engineer", "data platform", "analytics engineer",
             "big data", "databricks", "spark", "pyspark", "etl", "elt",
