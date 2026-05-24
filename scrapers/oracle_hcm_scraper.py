@@ -30,8 +30,8 @@ class OracleHCMScraper(BaseScraper):
         location_id = LOCATION_IDS.get(self.company_name)
 
         limit = 25
-        MAX_PAGES = {"JP Morgan Canada": 20, "American Express Canada": 20}
-        max_offset = MAX_PAGES.get(self.company_name, 9999) * limit
+        MAX_PAGES = {"JP Morgan Canada": 5, "American Express Canada": 5, "Oracle Canada": 5}
+        max_offset = MAX_PAGES.get(self.company_name, 5) * limit  # default 5 pages = 125 jobs max
 
         jobs = []
         offset = 0
@@ -51,7 +51,7 @@ class OracleHCMScraper(BaseScraper):
                         "offset": offset,
                         "expand": "requisitionList",
                     },
-                    timeout=8,
+                    timeout=5,
                 )
                 if r.status_code != 200:
                     logger.warning(f"[{self.company_name}] Oracle HCM {r.status_code} at offset {offset}")
