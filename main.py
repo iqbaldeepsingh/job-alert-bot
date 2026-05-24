@@ -146,7 +146,7 @@ def scrape_all(headless: bool = True, track_counts: bool = False):
 
 
 # ── Main run ────────────────────────────────────────────────────
-def run(run_label: str = "Daily", headless: bool = True, broad: bool = False):
+def run(run_label: str = "Daily", headless: bool = True, broad: bool = False, include_us: bool = False):
     start = time.time()
     logger.info(f"{'='*55}")
     logger.info(f"Job Alert Bot — {run_label}{'  [BROAD TEST]' if broad else ''}")
@@ -156,6 +156,10 @@ def run(run_label: str = "Daily", headless: bool = True, broad: bool = False):
     if broad:
         BaseScraper.is_data_role = lambda self, title: True
         logger.info("BROAD MODE: is_data_role patched to True for all titles")
+
+    if include_us:
+        BaseScraper.is_canada_job = lambda self, location: True
+        logger.info("INCLUDE-US MODE: is_canada_job patched to accept all locations")
 
     # Step 1 — Scrape
     if broad:
@@ -228,6 +232,9 @@ if __name__ == "__main__":
     parser.add_argument("--broad",
         action="store_true",
         help="Broad test: accept all job titles, skip deduplication")
+    parser.add_argument("--include-us",
+        action="store_true",
+        help="Include US jobs alongside Canada (useful for testing which scrapers work)")
     args = parser.parse_args()
 
     if args.clear_cache:
@@ -283,4 +290,4 @@ if __name__ == "__main__":
         "evening": "Evening (6 PM)",
         "daily":   "Daily",
     }
-    run(run_label=labels[args.run], headless=not args.no_headless, broad=args.broad)
+    run(run_label=labels[args.run], headless=not args.no_headless, broad=args.broad, include_us=args.include_us)

@@ -5,6 +5,13 @@ on:
     - cron: "0 12 * * *"   # 8 AM UTC-4 → targets 9 AM Toronto (EDT), scheduled early to offset GitHub Actions delay
     - cron: "0 21 * * *"   # 5 PM UTC-4 → targets 6 PM Toronto (EDT), scheduled early to offset GitHub Actions delay
   workflow_dispatch:        # Manual trigger anytime
+    inputs:
+      include_us:
+        description: "Include US jobs (to test which scrapers are working)"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
 
 jobs:
   job-alert:
@@ -48,12 +55,16 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           GMAIL_RECIPIENT:    ${{ secrets.GMAIL_RECIPIENT }}
         run: |
+          EXTRA=""
+          if [ "${{ github.event.inputs.include_us }}" = "true" ]; then
+            EXTRA="--include-us"
+          fi
           if [ "${{ github.event.schedule }}" = "0 21 * * *" ]; then
-            python main.py --run evening
+            python main.py --run evening $EXTRA
           elif [ "${{ github.event.schedule }}" = "0 12 * * *" ]; then
-            python main.py --run morning
+            python main.py --run morning $EXTRA
           else
-            python main.py --run daily
+            python main.py --run daily $EXTRA
           fi
 
       - name: Upload logs
