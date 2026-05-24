@@ -144,11 +144,10 @@ class BaseScraper:
             "feeds engineer", "data security engineer", "vector database",
             "data contract", "ai platform engineer",
             "ingénieur de données", "ingénieur données",
-            "data cloud", "developer advocate", "chief data", "chief analytics",
-            "vp of data", "svp of data", "vp of analytics", "data analytics",
+            "data cloud", "developer advocate", "data analytics",
             "architecte de données", "forward deployed", "distributed systems",
             "production engineer", "deployment strategist", "field engineer",
-            "managing director", "cloud architect",
+            "cloud architect",
             # ML / Gen AI roles (Databricks ML + Gen AI cert track)
             "ai engineer", "llm engineer", "gen ai", "generative ai",
             "ml infrastructure", "model deployment", "prompt engineer",
