@@ -5,22 +5,15 @@ from scrapers.base_scraper import BaseScraper
 logger = logging.getLogger(__name__)
 
 LEVER_SLUGS = {
-    "Wealthsimple":           "wealthsimple",
     "Spotify Canada":         "spotify",
     "Veeva Systems Canada":   "veeva",
     "PointClickCare":         "pointclickcare",
     "Palantir Canada":        "palantir",
-    "Klarna Canada":          "klarna-canada",
     "Wave Financial":         "waveapps",
     "Wattpad / Naver Canada": "wattpad",
     "KUBRA":                  "kubra",
-    # New companies
-    "Hopper":                 "hopper",
-    "ApplyBoard":             "applyboard",
     "Maple Health":           "getmaple",
-    "Dialogue Health":        "dialogue",
-    "Bain Canada":            "bain",
-    "Vidyard":                "vidyard",
+    "Acceldata Canada":       "acceldata",
 }
 
 

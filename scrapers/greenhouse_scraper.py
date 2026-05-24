@@ -48,16 +48,9 @@ GREENHOUSE_SLUGS = {
     "Nuvei":                       "nuveinc",
     "Canva Canada":                "canva",
     # ── New companies ──
-    "1Password":                   "1password",
-    "Notion Canada":               "notion",
     "Figma Canada":                "figma",
-    "Aritzia":                     "aritzia",
-    "SSENSE":                      "ssense",
-    "Verafin":                     "verafin",
-    "Slalom Canada":               "slalom",
-    "Square / Block Canada":       "block-inc",
-    "Hopper":                      "hopper",
-    "Acceldata Canada":            "acceldata",
+    "Square / Block Canada":       "block",
+    "LinkedIn Canada":             "linkedin",
 }
 
 # Slugs verified to work — skip +inc/+hq fallbacks for these

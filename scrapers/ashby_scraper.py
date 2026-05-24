@@ -26,6 +26,11 @@ ASHBY_SLUGS = {
     "Matillion Canada":     "matillion",
     "Monte Carlo Data":     "montecarlodata",
     "Atlan":                "atlan",
+    "Benevity":             "benevity",
+    "Wealthsimple":         "wealthsimple",
+    "1Password":            "1password",
+    "Notion Canada":        "notion",
+    "Hopper":               "hopper",
 }
 
 _API = "https://api.ashbyhq.com/posting-api/job-board/{slug}"
