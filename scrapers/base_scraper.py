@@ -142,6 +142,22 @@ class BaseScraper:
         ]
         return any(k in loc for k in canada_keywords)
 
+    def is_us_or_canada_job(self, location: str) -> bool:
+        if not location:
+            return False
+        loc = location.lower()
+        us_keywords = [
+            "united states", " usa", "u.s.a", "remote - us", "remote us",
+            "remote - united states", "remote usa",
+            "new york", "san francisco", "california", "seattle", "chicago",
+            "boston", "austin", "dallas", "atlanta", "washington, d.c",
+            "washington d.c", "virginia", "maryland", "texas", "illinois",
+            "massachusetts", "georgia", "north carolina", "colorado",
+            "pennsylvania", "ohio", "florida", "oregon", "washington",
+            "minnesota", "michigan", "arizona", "remote, us",
+        ]
+        return self.is_canada_job(location) or any(k in loc for k in us_keywords)
+
     def is_data_role(self, title: str) -> bool:
         t = title.lower()
 
@@ -175,13 +191,13 @@ class BaseScraper:
             "analytics platform", "dbt developer", "kafka engineer",
             "snowflake engineer", "flink engineer", "airflow engineer",
             "bigquery engineer", "redshift engineer", "sql developer",
-            "report developer", "solutions engineer", "solutions architect",
+            "report developer",
             "feeds engineer", "data security engineer", "vector database",
             "data contract", "ai platform engineer",
             "ingénieur de données", "ingénieur données",
             "data cloud", "developer advocate", "data analytics",
             "architecte de données", "forward deployed", "distributed systems",
-            "production engineer", "deployment strategist", "field engineer",
+            "production engineer", "deployment strategist",
             "cloud architect",
             # ML / Gen AI roles (Databricks ML + Gen AI cert track)
             "ai engineer", "llm engineer", "gen ai", "generative ai",

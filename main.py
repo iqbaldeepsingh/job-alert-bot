@@ -158,8 +158,8 @@ def run(run_label: str = "Daily", headless: bool = True, broad: bool = False, in
         logger.info("BROAD MODE: is_data_role patched to True for all titles")
 
     if include_us:
-        BaseScraper.is_canada_job = lambda self, location: True
-        logger.info("INCLUDE-US MODE: is_canada_job patched to accept all locations")
+        BaseScraper.is_canada_job = BaseScraper.is_us_or_canada_job
+        logger.info("INCLUDE-US MODE: is_canada_job patched to accept US + Canada locations")
 
     # Step 1 — Scrape
     if broad:
