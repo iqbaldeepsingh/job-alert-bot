@@ -38,7 +38,7 @@ class AvatureScraper(BaseScraper):
             return []
 
         channel = root.find("channel")
-        items = channel.findall("item") if channel else []
+        items = channel.findall("item") if channel is not None else []
 
         jobs = []
         for item in items:

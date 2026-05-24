@@ -55,6 +55,34 @@ PHENOM_CONFIGS = {
         "search_url":       "https://jobs-ca.pwc.com/ca/en/search-results?keywords=data+engineer",
         "job_url_template": "https://jobs-ca.pwc.com/ca/en/job/{jobSeqNo}/{slug}",
     },
+    "Rogers Communications": {
+        "search_url":       "https://jobs.rogers.com/ca/en/search-results?keywords=data+engineer",
+        "job_url_template": "https://jobs.rogers.com/ca/en/job/{jobSeqNo}/{slug}",
+    },
+    "TELUS": {
+        "search_url":       "https://careers.telus.com/search-results?keywords=data+engineer",
+        "job_url_template": "https://careers.telus.com/job/{jobSeqNo}/{slug}",
+    },
+    "AstraZeneca Canada": {
+        "search_url":       "https://careers.astrazeneca.com/search-results?keywords=data+engineer&location=Canada",
+        "job_url_template": "https://careers.astrazeneca.com/job/{jobSeqNo}/{slug}",
+    },
+    "Bayer Canada": {
+        "search_url":       "https://career.bayer.com/en/search-results?keywords=data+engineer&location=Canada",
+        "job_url_template": "https://career.bayer.com/en/job/{jobSeqNo}/{slug}",
+    },
+    "Merck Canada": {
+        "search_url":       "https://jobs.merck.com/ca/en/search-results?keywords=data+engineer",
+        "job_url_template": "https://jobs.merck.com/ca/en/job/{jobSeqNo}/{slug}",
+    },
+    "Hydro One": {
+        "search_url":       "https://careers.hydroone.com/search-results?keywords=data+engineer",
+        "job_url_template": "https://careers.hydroone.com/job/{jobSeqNo}/{slug}",
+    },
+    "Ontario Power Generation": {
+        "search_url":       "https://jobs.opg.com/search-results?keywords=data+engineer",
+        "job_url_template": "https://jobs.opg.com/job/{jobSeqNo}/{slug}",
+    },
 }
 
 

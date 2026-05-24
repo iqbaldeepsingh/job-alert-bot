@@ -21,11 +21,24 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from config.settings import COMPANIES
-from scrapers.custom_scrapers import get_scraper, GenericScraper
+from scrapers.custom_scrapers import get_scraper, GenericScraper, AmazonScraper, NetflixScraper, ShopifyScraper
 from scrapers.base_scraper import BaseScraper, build_driver
-from scrapers.custom_scrapers import get_scraper
+from scrapers.greenhouse_scraper import GreenhouseScraper
+from scrapers.lever_scraper import LeverScraper
+from scrapers.ashby_scraper import AshbyScraper
+from scrapers.phenom_scraper import PhenomScraper
+from scrapers.smartrecruiters_scraper import SmartRecruitersScraper
+from scrapers.avature_scraper import AvatureScraper
+from scrapers.oracle_hcm_scraper import OracleHCMScraper
 from utils.email_builder import send_email, send_broad_summary_email
 from utils.deduplicator import filter_new_jobs, clear_cache
+
+# Scrapers that use HTTP only — no Chrome needed at all
+_NO_SELENIUM = (
+    GreenhouseScraper, LeverScraper, AshbyScraper, PhenomScraper,
+    SmartRecruitersScraper, AvatureScraper, OracleHCMScraper,
+    AmazonScraper, NetflixScraper, ShopifyScraper,
+)
 
 # ── Logging setup ───────────────────────────────────────────────
 os.makedirs("logs", exist_ok=True)
@@ -48,11 +61,18 @@ logger = logging.getLogger(__name__)
 _chrome_semaphore = __import__("threading").Semaphore(2)
 
 def scrape_company(company: dict, headless: bool = True) -> list:
+    scraper = get_scraper(company)
+    if isinstance(scraper, _NO_SELENIUM):
+        try:
+            return scraper.run(None)
+        except Exception as e:
+            logger.error(f"[{company['name']}] Unexpected error: {e}")
+            return []
+
     with _chrome_semaphore:
-        time.sleep(random.uniform(0.3, 1.0))   # small stagger inside the semaphore
+        time.sleep(random.uniform(0.3, 1.0))
         driver = build_driver(headless=headless)
     try:
-        scraper = get_scraper(company)
         return scraper.run(driver)
     except Exception as e:
         logger.error(f"[{company['name']}] Unexpected error: {e}")

@@ -6,18 +6,17 @@ logger = logging.getLogger(__name__)
 
 # SmartRecruiters company slugs — exact slug from their API
 SMARTRECRUITERS_SLUGS = {
-    # Companies with scraper: smartrecruiters in settings.py
     "Visa Canada":            "Visa",
     "ServiceNow Canada":      "ServiceNow",
-    "Accenture Canada":       "Accenture",
     "KPMG Canada":            "KPMG",
     "EY Canada":              "EY",
-    "CGI Group":              "CGI",
     "Lululemon Canada":       "lululemon",
-    "McKinsey Canada":        "McKinsey",
     "Electronic Arts Canada": "ElectronicArts",
     "Zynga Canada":           "Zynga",
-    "Etsy Canada":            "Etsy",
+    # New companies on SmartRecruiters
+    "Ubisoft Canada":         "Ubisoft",
+    "Randstad Canada":        "Randstad",
+    "CGI Group":              "CGI",
 }
 
 _API = "https://api.smartrecruiters.com/v1/companies/{slug}/postings"

@@ -23,11 +23,16 @@ class OracleHCMScraper(BaseScraper):
 
         domain, site_number = config
 
-        # Canada locationId per tenant (from network inspection)
+        # Canada locationId per tenant — limits scan to Canada only (prevents timeout on large tenants)
         LOCATION_IDS = {
-            "Oracle Canada": "300000000106749",
+            "Oracle Canada":    "300000000106749",
+            "JP Morgan Canada": "300000000476474",  # Toronto, Ontario, Canada
         }
         location_id = LOCATION_IDS.get(self.company_name)
+
+        # Safety cap for tenants without locationId to avoid scanning thousands of global reqs
+        MAX_PAGES = {"JP Morgan Canada": 20, "American Express Canada": 20}
+        max_offset = MAX_PAGES.get(self.company_name, 9999) * limit
 
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
@@ -97,7 +102,7 @@ class OracleHCMScraper(BaseScraper):
                     ))
 
                 offset += limit
-                if offset >= (total or 0):
+                if offset >= (total or 0) or offset >= max_offset:
                     break
 
             except Exception as e:

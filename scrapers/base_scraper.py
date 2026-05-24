@@ -156,9 +156,9 @@ class BaseScraper:
         t = title.lower()
         if any(w in t for w in ["staff", "principal", "lead", "director", "architect"]):
             return "Staff / Lead"
-        if any(w in t for w in ["senior", " sr.", " sr "]):
+        if any(w in t for w in ["senior", " sr.", " sr ", "sr. ", "sr "]):
             return "Senior"
-        if any(w in t for w in ["associate", "junior", "jr.", "entry", "ii", "iii"]):
+        if any(w in t for w in ["associate", "junior", "jr.", "entry", " ii", " iii", " 2", " 3"]):
             return "Entry Level"
         if any(w in t for w in ["mid", "intermediate", "level 2"]):
             return "Mid-Level"
