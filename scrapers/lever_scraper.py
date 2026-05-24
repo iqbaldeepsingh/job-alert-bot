@@ -1,6 +1,5 @@
 import logging
-import requests
-from scrapers.base_scraper import BaseScraper
+from scrapers.base_scraper import BaseScraper, get_session
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +34,7 @@ class LeverScraper(BaseScraper):
         url = f"https://api.lever.co/v0/postings/{slug}?mode=json&limit=200"
 
         try:
-            resp = requests.get(url, timeout=15,
-                                headers={"User-Agent": "Mozilla/5.0"})
+            resp = get_session().get(url, timeout=8)
             if resp.status_code != 200:
                 logger.warning(f"[{self.company_name}] Lever API {resp.status_code}")
                 return []

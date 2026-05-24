@@ -7,6 +7,10 @@ Chrome setup, helpers, filters ਇੱਥੇ ਨੇ
 import time
 import re
 import logging
+import threading
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -30,6 +34,21 @@ HTTP_HEADERS = {
     "Content-Type": "application/json",
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
 }
+
+# Thread-local session — one persistent TCP connection pool per thread
+_local = threading.local()
+
+def get_session() -> requests.Session:
+    """Return a thread-local requests.Session with connection pooling and retry."""
+    if not hasattr(_local, "session"):
+        session = requests.Session()
+        retry = Retry(total=2, backoff_factor=0.3, status_forcelist=[502, 503, 504])
+        adapter = HTTPAdapter(max_retries=retry, pool_maxsize=20, pool_connections=10)
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+        session.headers.update({"User-Agent": HTTP_HEADERS["User-Agent"]})
+        _local.session = session
+    return _local.session
 
 
 def build_driver(headless: bool = True) -> webdriver.Chrome:

@@ -1,6 +1,5 @@
 import logging
-import requests
-from scrapers.base_scraper import BaseScraper
+from scrapers.base_scraper import BaseScraper, get_session
 
 logger = logging.getLogger(__name__)
 
@@ -31,19 +30,18 @@ class SmartRecruitersScraper(BaseScraper):
             logger.warning(f"[{self.company_name}] No SmartRecruiters slug found")
             return []
 
-        headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
         all_postings = []
         offset = 0
         limit = 100
+        session = get_session()
 
         while True:
             params = {"q": "data engineer", "limit": limit, "offset": offset}
             try:
-                r = requests.get(
+                r = session.get(
                     _API.format(slug=slug),
-                    headers=headers,
                     params=params,
-                    timeout=15,
+                    timeout=8,
                 )
                 if r.status_code != 200:
                     logger.warning(f"[{self.company_name}] SmartRecruiters {r.status_code}")

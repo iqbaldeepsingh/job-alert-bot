@@ -1,6 +1,5 @@
 import logging
-import requests
-from scrapers.base_scraper import BaseScraper
+from scrapers.base_scraper import BaseScraper, get_session
 
 logger = logging.getLogger(__name__)
 
@@ -89,9 +88,8 @@ class AshbyScraper(BaseScraper):
             logger.warning(f"[{self.company_name}] No Ashby slug found")
             return []
 
-        headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
         try:
-            r = requests.get(_API.format(slug=slug), headers=headers, timeout=15)
+            r = get_session().get(_API.format(slug=slug), timeout=8)
             if r.status_code != 200:
                 logger.warning(f"[{self.company_name}] Ashby {r.status_code}")
                 return []

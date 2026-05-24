@@ -1,7 +1,6 @@
 import re
 import logging
-import requests
-from scrapers.base_scraper import BaseScraper
+from scrapers.base_scraper import BaseScraper, get_session
 
 logger = logging.getLogger(__name__)
 
@@ -100,12 +99,7 @@ class PhenomScraper(BaseScraper):
             return []
 
         try:
-            headers = {
-                "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                               "AppleWebKit/537.36 (KHTML, like Gecko) "
-                               "Chrome/120.0.0.0 Safari/537.36"),
-            }
-            r = requests.get(config["search_url"], headers=headers, timeout=15)
+            r = get_session().get(config["search_url"], timeout=10)
             if r.status_code != 200:
                 logger.warning(f"[{self.company_name}] Phenom {r.status_code}")
                 return []

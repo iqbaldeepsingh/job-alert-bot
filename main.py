@@ -40,6 +40,9 @@ _NO_SELENIUM = (
     AmazonScraper, NetflixScraper, ShopifyScraper,
 )
 
+# Per-company wall-clock timeout — prevents one stuck scraper blocking the run
+_COMPANY_TIMEOUT_S = 60
+
 # ── Logging setup ───────────────────────────────────────────────
 os.makedirs("logs", exist_ok=True)
 os.makedirs("data", exist_ok=True)
@@ -83,10 +86,12 @@ def scrape_company(company: dict, headless: bool = True) -> list:
 
 # ── Scrape all companies ────────────────────────────────────────
 def scrape_all(headless: bool = True, track_counts: bool = False):
-    all_jobs     = []
-    company_counts = []   # [(name, count), ...] populated when track_counts=True
-    total        = len(COMPANIES)
-    done         = 0
+    import threading as _threading
+
+    all_jobs       = []
+    company_counts = []
+    _lock          = _threading.Lock()
+    done_count     = [0]
 
     API_TYPES = {"greenhouse", "lever", "workday", "phenom", "ashby",
                  "smartrecruiters", "oracle_hcm", "avature"}
@@ -94,30 +99,45 @@ def scrape_all(headless: bool = True, track_counts: bool = False):
     sel_cos = [c for c in COMPANIES
                if c.get("scraper") not in API_TYPES
                and not isinstance(get_scraper(c), GenericScraper)]
+    skipped = len(COMPANIES) - len(api_cos) - len(sel_cos)
+    total   = len(api_cos) + len(sel_cos)
 
     logger.info(f"{'='*55}")
-    logger.info(f"Total companies : {total}")
+    logger.info(f"Total companies : {len(COMPANIES)}")
     logger.info(f"API scrapers    : {len(api_cos)} (no Chrome needed)")
     logger.info(f"Selenium scrapers: {len(sel_cos)} (need Chrome)")
+    logger.info(f"Skipped (Generic): {skipped} (no dedicated scraper)")
     logger.info(f"{'='*55}")
 
-    def _run(cos, headless):
-        nonlocal done
-        with ThreadPoolExecutor(max_workers=10 if cos is api_cos else 5) as pool:
+    def _collect(c, jobs):
+        with _lock:
+            all_jobs.extend(jobs)
+            if track_counts:
+                company_counts.append((c["name"], len(jobs)))
+            done_count[0] += 1
+            logger.info(
+                f"Progress: {done_count[0]}/{total} | "
+                f"{c['name']}: {len(jobs)} jobs | Total: {len(all_jobs)}"
+            )
+
+    def _run_pool(cos, max_workers):
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
             futures = {pool.submit(scrape_company, c, headless): c for c in cos}
             for future in as_completed(futures):
-                c    = futures[future]
-                jobs = future.result()
-                all_jobs.extend(jobs)
-                if track_counts:
-                    company_counts.append((c["name"], len(jobs)))
-                done += 1
-                logger.info(f"Progress: {done}/{total} | {c['name']}: {len(jobs)} jobs | Total: {len(all_jobs)}")
+                c = futures[future]
+                try:
+                    jobs = future.result(timeout=_COMPANY_TIMEOUT_S)
+                except Exception as e:
+                    logger.error(f"[{c['name']}] timed out or crashed: {e}")
+                    jobs = []
+                _collect(c, jobs)
 
-    logger.info("Phase 1: API scrapers starting...")
-    _run(api_cos, headless)
-    logger.info("Phase 2: Selenium scrapers starting...")
-    _run(sel_cos, headless)
+    # Phase 1 (API, 40 threads) and Phase 2 (Selenium, 4 threads) run concurrently
+    t1 = _threading.Thread(target=_run_pool, args=(api_cos, 40), daemon=True)
+    t2 = _threading.Thread(target=_run_pool, args=(sel_cos, 4),  daemon=True)
+    logger.info("Starting API + Selenium phases concurrently...")
+    t1.start(); t2.start()
+    t1.join();  t2.join()
 
     logger.info(f"Scraping complete — {len(all_jobs)} total jobs")
     if track_counts:

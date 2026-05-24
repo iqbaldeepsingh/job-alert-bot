@@ -1,12 +1,11 @@
 import re
 import time
 import logging
-import requests
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
-from scrapers.base_scraper import BaseScraper, HTTP_HEADERS
+from scrapers.base_scraper import BaseScraper, HTTP_HEADERS, get_session
 
 logger = logging.getLogger(__name__)
 
@@ -75,12 +74,12 @@ class WorkdayScraper(BaseScraper):
             offset = 0
             while True:
                 body = {"appliedFacets": location_facets, "limit": PAGE, "offset": offset, "searchText": "data engineer"}
-                r = requests.post(api_url, headers=HTTP_HEADERS, json=body, timeout=12)
+                session = get_session()
+                r = session.post(api_url, headers=HTTP_HEADERS, json=body, timeout=8)
                 if r.status_code == 400 and location_facets and offset == 0:
-                    # Tenant rejects this facet — retry without location filter
                     location_facets = {}
                     body["appliedFacets"] = {}
-                    r = requests.post(api_url, headers=HTTP_HEADERS, json=body, timeout=12)
+                    r = session.post(api_url, headers=HTTP_HEADERS, json=body, timeout=8)
                 if r.status_code != 200:
                     return None
                 data = r.json()

@@ -1,6 +1,5 @@
 import logging
-import requests
-from scrapers.base_scraper import BaseScraper
+from scrapers.base_scraper import BaseScraper, get_session
 
 logger = logging.getLogger(__name__)
 
@@ -93,11 +92,11 @@ class GreenhouseScraper(BaseScraper):
             slugs_to_try = [slug, slug.replace("-", ""), slug + "inc", slug + "hq"]
 
         all_jobs = []
+        session = get_session()
         for s in slugs_to_try:
             url = f"https://boards-api.greenhouse.io/v1/boards/{s}/jobs?content=true"
             try:
-                resp = requests.get(url, timeout=15,
-                                    headers={"User-Agent": "Mozilla/5.0"})
+                resp = session.get(url, timeout=8)
                 if resp.status_code == 200:
                     all_jobs = resp.json().get("jobs", [])
                     logger.info(f"[{self.company_name}] {len(all_jobs)} jobs with slug: {s}")

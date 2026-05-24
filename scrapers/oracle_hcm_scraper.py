@@ -1,6 +1,5 @@
 import logging
-import requests
-from scrapers.base_scraper import BaseScraper
+from scrapers.base_scraper import BaseScraper, get_session
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +33,6 @@ class OracleHCMScraper(BaseScraper):
         MAX_PAGES = {"JP Morgan Canada": 20, "American Express Canada": 20}
         max_offset = MAX_PAGES.get(self.company_name, 9999) * limit
 
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-            "Accept": "application/json",
-        }
-
         jobs = []
         offset = 0
         limit = 25
@@ -46,7 +40,7 @@ class OracleHCMScraper(BaseScraper):
 
         while True:
             try:
-                r = requests.get(
+                r = get_session().get(
                     _API.format(domain=domain),
                     params={
                         "onlyData": "true",
@@ -58,8 +52,7 @@ class OracleHCMScraper(BaseScraper):
                         "offset": offset,
                         "expand": "requisitionList",
                     },
-                    headers=headers,
-                    timeout=15,
+                    timeout=8,
                 )
                 if r.status_code != 200:
                     logger.warning(f"[{self.company_name}] Oracle HCM {r.status_code} at offset {offset}")
