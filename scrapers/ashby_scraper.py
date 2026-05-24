@@ -28,6 +28,11 @@ ASHBY_SLUGS = {
     "Notion Canada":        "notion",
     "Hopper":               "hopper",
     "Snowflake Canada":     "snowflake",
+    # ML / AI companies
+    "Writer":               "writer",
+    "Perplexity AI":        "perplexity",
+    "LangChain":            "langchain",
+    "Anyscale":             "anyscale",
 }
 
 _API = "https://api.ashbyhq.com/posting-api/job-board/{slug}"

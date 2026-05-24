@@ -149,6 +149,13 @@ class BaseScraper:
             "architecte de données", "forward deployed", "distributed systems",
             "production engineer", "deployment strategist", "field engineer",
             "managing director", "cloud architect",
+            # ML / Gen AI roles (Databricks ML + Gen AI cert track)
+            "ai engineer", "llm engineer", "gen ai", "generative ai",
+            "ml infrastructure", "model deployment", "prompt engineer",
+            "foundation model", "applied ml", "applied scientist",
+            "research engineer", "ai infrastructure", "inference engineer",
+            "fine-tuning", "rag engineer", "embedding", "ai/ml",
+            "customer engineer", "ml reliability",
         ]
         return any(k in t for k in keywords)
 

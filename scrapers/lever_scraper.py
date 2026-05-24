@@ -16,6 +16,9 @@ LEVER_SLUGS = {
     "Acceldata Canada":       "acceldata",
     "EQ Bank":                "eqbank",
     "Matillion Canada":       "matillion",
+    # ML / AI companies
+    "Mistral AI":             "mistral",
+    "Waabi":                  "waabi",
 }
 
 

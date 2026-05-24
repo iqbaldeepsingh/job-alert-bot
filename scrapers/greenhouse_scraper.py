@@ -51,6 +51,11 @@ GREENHOUSE_SLUGS = {
     "Figma Canada":                "figma",
     "Square / Block Canada":       "block",
     "LinkedIn Canada":             "linkedin",
+    # ML / AI companies
+    "Scale AI":                    "scaleai",
+    "Anthropic":                   "anthropic",
+    "Stability AI":                "stabilityai",
+    "Together AI":                 "togetherai",
 }
 
 # Slugs verified to work — skip +inc/+hq fallbacks for these
