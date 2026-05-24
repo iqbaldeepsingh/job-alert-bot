@@ -14,6 +14,8 @@ LEVER_SLUGS = {
     "KUBRA":                  "kubra",
     "Maple Health":           "getmaple",
     "Acceldata Canada":       "acceldata",
+    "EQ Bank":                "eqbank",
+    "Matillion Canada":       "matillion",
 }
 
 

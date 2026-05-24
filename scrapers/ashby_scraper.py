@@ -20,10 +20,6 @@ ASHBY_SLUGS = {
     "Prodigy Education":    "prodigy-education",
     "Clearco":              "clearco",
     # New companies on Ashby
-    "EQ Bank":              "eqbank",
-    "Clio":                 "clio",
-    "WELL Health Technologies": "wellhealth",
-    "Matillion Canada":     "matillion",
     "Monte Carlo Data":     "montecarlodata",
     "Atlan":                "atlan",
     "Benevity":             "benevity",
@@ -31,6 +27,7 @@ ASHBY_SLUGS = {
     "1Password":            "1password",
     "Notion Canada":        "notion",
     "Hopper":               "hopper",
+    "Snowflake Canada":     "snowflake",
 }
 
 _API = "https://api.ashbyhq.com/posting-api/job-board/{slug}"
