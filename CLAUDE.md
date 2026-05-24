@@ -156,6 +156,15 @@ python main.py --broad          # accept ALL job titles, sends company-count sum
 
 ## Future Roadmap
 - Fix ~42 broken scrapers (priority: Manulife, National Bank, Goldman Sachs, JP Morgan)
-- Multi-user support: each user has own keywords, countries, email
 - Multi-role: Software Engineer, DevOps in addition to Data Engineering
-- Multi-country: Canada + USA support
+
+### Multi-User Support (planned)
+Support a second user (sister — Full Stack Developer, 8 yrs exp, TD Canada + Amdocs India) alongside Iqbal.
+
+**Key changes needed:**
+- `config/users.py` — per-user profile: name, email, countries, role_type
+- `is_fullstack_role()` in base_scraper.py — new role filter (React, Node, Java, Spring Boot, Angular, etc.)
+- Location filter per user: Iqbal = Canada only, Sister = Canada + US
+- Separate dedup cache per user: `data/seen_jobs_iqbal.json`, `data/seen_jobs_sister.json`
+- Scrape once, filter per user — no double scraping
+- GitHub Actions: two cache keys, email sent to each user independently
