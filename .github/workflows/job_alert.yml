@@ -12,6 +12,12 @@ on:
         default: "false"
         type: choice
         options: ["false", "true"]
+      clear_cache:
+        description: "Clear seen jobs cache (resends all jobs)"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
 
 jobs:
   job-alert:
@@ -46,8 +52,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: data/seen_jobs.json
-          key: seen-jobs-${{ github.run_id }}
-          restore-keys: seen-jobs-
+          key: seen-jobs-${{ github.event.inputs.include_us == 'true' && 'us-test' || github.run_id }}
+          restore-keys: ${{ github.event.inputs.include_us == 'true' && 'seen-jobs-us-test' || 'seen-jobs-' }}
 
       - name: Run Job Alert Bot
         env:
@@ -58,6 +64,9 @@ jobs:
           EXTRA=""
           if [ "${{ github.event.inputs.include_us }}" = "true" ]; then
             EXTRA="--include-us"
+          fi
+          if [ "${{ github.event.inputs.clear_cache }}" = "true" ]; then
+            python main.py --clear-cache
           fi
           if [ "${{ github.event.schedule }}" = "0 21 * * *" ]; then
             python main.py --run evening $EXTRA
