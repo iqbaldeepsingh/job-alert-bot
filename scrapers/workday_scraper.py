@@ -73,7 +73,7 @@ class WorkdayScraper(BaseScraper):
             all_postings = []
             offset = 0
             while True:
-                body = {"appliedFacets": location_facets, "limit": PAGE, "offset": offset, "searchText": "data engineer"}
+                body = {"appliedFacets": location_facets, "limit": PAGE, "offset": offset, "searchText": ""}
                 session = get_session()
                 r = session.post(api_url, headers=HTTP_HEADERS, json=body, timeout=8)
                 if r.status_code == 400 and location_facets and offset == 0:
