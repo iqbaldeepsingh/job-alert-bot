@@ -165,10 +165,10 @@ class BaseScraper:
         if any(x in t for x in ["intern", "co-op", "coop", "student", "placement"]):
             return False
 
-        # Exclude management/director roles — whole-word match anywhere in title
-        if re.search(r'\b(manager|managers|director|directors)\b', t):
+        # Exclude management/director/VP roles — whole-word match anywhere in title
+        if re.search(r'\b(manager|managers|director|directors|vp)\b', t):
             return False
-        if any(x in t for x in ["head of ", "managing director"]):
+        if any(x in t for x in ["head of ", "managing director", "vice president", "pre-sales", "presales"]):
             return False
 
         # Exclude pure "data analyst" roles (keep "analytics engineer", "data analytics engineer")
@@ -215,7 +215,7 @@ class BaseScraper:
             return "Staff / Lead"
         if any(w in t for w in ["senior", " sr.", " sr ", "sr. ", "sr "]):
             return "Senior"
-        if any(w in t for w in ["associate", "junior", "jr.", "entry", " ii", " iii", " 2", " 3"]):
+        if any(w in t for w in ["associate", "junior", "jr.", " jr ", "jr ", " jr,", "entry", " ii", " iii", " 2", " 3"]):
             return "Entry Level"
         if any(w in t for w in ["mid", "intermediate", "level 2"]):
             return "Mid-Level"
