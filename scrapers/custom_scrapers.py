@@ -1538,10 +1538,10 @@ class ICIMSScraper(BaseScraper):
 
     def scrape(self, driver) -> list:
         driver.get(self._search_url)
-        time.sleep(6)
+        time.sleep(10)  # Angular SPA needs extra time to render job listings
         try:
             self.slow_scroll(driver)
-            time.sleep(2)
+            time.sleep(3)
         except Exception:
             pass
         links = []
