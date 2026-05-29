@@ -46,7 +46,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: data/seen_jobs.json
-          key: seen-jobs-v1
+          key: seen-jobs-${{ github.run_id }}
           restore-keys: seen-jobs-
 
       - name: Run Job Alert Bot
