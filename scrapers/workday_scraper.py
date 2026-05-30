@@ -77,9 +77,18 @@ class WorkdayScraper(BaseScraper):
                 session = get_session()
                 r = session.post(api_url, headers=HTTP_HEADERS, json=body, timeout=8)
                 if r.status_code == 400 and location_facets and offset == 0:
-                    location_facets = {}
-                    body["appliedFacets"] = {}
-                    r = session.post(api_url, headers=HTTP_HEADERS, json=body, timeout=8)
+                    # Some tenants use 'Country' instead of 'locationCountry' — try that first
+                    country_id = (location_facets.get("locationCountry") or [None])[0]
+                    if country_id:
+                        alt_facets = {"Country": [country_id]}
+                        body["appliedFacets"] = alt_facets
+                        r = session.post(api_url, headers=HTTP_HEADERS, json=body, timeout=8)
+                        if r.status_code == 200:
+                            location_facets = alt_facets
+                    if r.status_code != 200:
+                        location_facets = {}
+                        body["appliedFacets"] = {}
+                        r = session.post(api_url, headers=HTTP_HEADERS, json=body, timeout=8)
                 if r.status_code != 200:
                     return None
                 data = r.json()
