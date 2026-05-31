@@ -655,6 +655,7 @@ class CGIScraper(BaseScraper):
                 seen.add(url)
 
                 title = ""
+                location = ""
                 # Njoyn: <a>(code) is inside <td> inside <tr>
                 # ../.. goes to <tr>; getting TDs from there gives just this row's cells
                 try:
@@ -666,6 +667,11 @@ class CGIScraper(BaseScraper):
                         if t and not re.match(r'^J\d{4}-\d{4}', t):
                             title = t
                             break
+                    # Extract location (col 3) and country (col 4) if present
+                    if len(tds) >= 5:
+                        location = self.safe_text(tds[3]) + " " + self.safe_text(tds[4])
+                    elif len(tds) >= 4:
+                        location = self.safe_text(tds[3])
                 except Exception:
                     pass
 
@@ -683,7 +689,11 @@ class CGIScraper(BaseScraper):
 
                 if not title or not self.is_data_role(title):
                     continue
-                jobs.append(self.build_job(title=title, location="Canada", url=url))
+                # Use extracted location; fall back to "Canada" only if empty
+                job_location = location.strip() if location.strip() else "Canada"
+                if not self.is_canada_job(job_location) and job_location != "Canada":
+                    continue
+                jobs.append(self.build_job(title=title, location=job_location, url=url))
             except Exception:
                 continue
         logger.info(f"[CGI Group] {len(jobs)} data jobs")

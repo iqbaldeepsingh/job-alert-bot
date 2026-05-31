@@ -48,7 +48,8 @@ class WorkdayScraper(BaseScraper):
     # ── Workday JSON API (fast, no browser needed) ───────────────
 
     def _location_facets(self) -> dict:
-        """Extract locationCountry/locationHierarchy facet IDs from the careers URL."""
+        """Extract location facet IDs from the careers URL.
+        Supports locationCountry, locationHierarchy, and Location_Country (Workday-on-Workday variant)."""
         from urllib.parse import urlparse, parse_qs
         params = parse_qs(urlparse(self.careers_url).query)
         facets: dict = {}
@@ -56,6 +57,8 @@ class WorkdayScraper(BaseScraper):
             facets["locationCountry"] = params["locationCountry"]
         if "locationHierarchy" in params:
             facets["locationHierarchy"] = params["locationHierarchy"]
+        if "Location_Country" in params:
+            facets["Location_Country"] = params["Location_Country"]
         return facets
 
     def _scrape_api(self):
